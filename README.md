@@ -1,6 +1,79 @@
 # StreamLang
 Linguagem para Streaming
 
+## Requisitos
+
+### Dependências Necessárias
+
+- Flex (analisador léxico)
+- Bison (analisador sintático)
+- GCC (compilador C)
+- Make
+
+### Instalação no Linux (Ubuntu/Debian)
+
+```bash
+sudo apt-get update
+sudo apt-get install flex bison gcc make
+```
+
+## Guia de Uso
+
+### Compilação
+
+Para compilar o compilador StreamLang:
+
+```bash
+make
+```
+
+Para limpar os arquivos gerados:
+
+```bash
+make clean
+```
+
+### Executando o Compilador
+
+Para processar um arquivo StreamLang (`.sl`):
+
+```bash
+./streamlang < arquivo.sl
+```
+
+O compilador realiza a análise léxica e sintática, gerando uma Abstract Syntax Tree (AST) do programa.
+
+### Exemplo de Programa
+
+```streamlang
+// Declarações de variáveis
+int pos = 0;
+string title = "Meu Video";
+
+// Comandos de streaming
+open("Trailer 1");
+play();
+wait(5);
+pause();
+
+// Controle de fluxo
+if (is_playing() == 1) {
+    print("Video em execução");
+} else {
+    print("Video pausado");
+}
+
+// Loop
+while (ended() == 0) {
+    pos = position();
+    if (pos >= 120) {
+        stop();
+    }
+}
+```
+
+Veja mais exemplos em [examples/](examples/).
+
 ## EBNF
 
 ```bash

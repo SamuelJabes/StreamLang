@@ -1,0 +1,1890 @@
+Terminals unused in grammar
+
+    T_ERROR
+
+
+Rules useless in parser due to conflicts
+
+   22 ifStmt: T_IF '(' expr ')' stmt T_ELSE stmt
+
+
+Grammar
+
+    0 $accept: program $end
+
+    1 program: ε
+    2        | stmtlist
+
+    3 stmtlist: stmt
+    4         | stmtlist stmt
+
+    5 decl: T_INT T_IDENT optInitNum ';'
+    6     | T_STRING T_IDENT optInitStr ';'
+
+    7 optInitNum: ε
+    8           | '=' expr
+
+    9 optInitStr: ε
+   10           | '=' T_STRING_LIT
+
+   11 stmt: decl
+   12     | assign ';'
+   13     | ifStmt
+   14     | whileStmt
+   15     | block
+   16     | printStmt
+   17     | streamStmt
+   18     | ';'
+
+   19 assign: T_IDENT '=' expr
+   20       | T_IDENT '=' T_STRING_LIT
+
+   21 ifStmt: T_IF '(' expr ')' stmt
+   22       | T_IF '(' expr ')' stmt T_ELSE stmt
+
+   23 whileStmt: T_WHILE '(' expr ')' stmt
+
+   24 block: '{' '}'
+   25      | '{' stmtlist '}'
+
+   26 printStmt: T_PRINT '(' expr ')' ';'
+   27          | T_PRINT '(' T_STRING_LIT ')' ';'
+
+   28 streamStmt: openStmt
+   29           | playStmt
+   30           | pauseStmt
+   31           | stopStmt
+   32           | seekStmt
+   33           | forwardStmt
+   34           | rewindStmt
+   35           | waitStmt
+
+   36 openStmt: T_OPEN '(' T_STRING_LIT ')' ';'
+   37         | T_OPEN '(' expr ')' ';'
+
+   38 optExpr: ε
+   39        | expr
+
+   40 playStmt: T_PLAY '(' optExpr ')' ';'
+
+   41 pauseStmt: T_PAUSE '(' ')' ';'
+
+   42 stopStmt: T_STOP '(' ')' ';'
+
+   43 seekStmt: T_SEEK '(' expr ')' ';'
+
+   44 forwardStmt: T_FORWARD '(' expr ')' ';'
+
+   45 rewindStmt: T_REWIND '(' expr ')' ';'
+
+   46 waitStmt: T_WAIT '(' expr ')' ';'
+
+   47 expr: equality
+
+   48 equality: relational
+   49         | equality T_EQ relational
+   50         | equality T_NE relational
+
+   51 relational: additive
+   52           | relational '<' additive
+   53           | relational '>' additive
+   54           | relational T_LE additive
+   55           | relational T_GE additive
+
+   56 additive: term
+   57         | additive '+' term
+   58         | additive '-' term
+
+   59 term: factor
+   60     | term '*' factor
+   61     | term '/' factor
+
+   62 factor: primary
+   63       | '-' factor
+
+   64 primary: T_NUMBER
+   65        | T_IDENT
+   66        | '(' expr ')'
+   67        | T_POSITION '(' ')'
+   68        | T_DURATION '(' ')'
+   69        | T_ENDED '(' ')'
+   70        | T_IS_PLAYING '(' ')'
+
+
+Terminals, with rules where they appear
+
+    $end (0) 0
+    '(' (40) 21 22 23 26 27 36 37 40 41 42 43 44 45 46 66 67 68 69 70
+    ')' (41) 21 22 23 26 27 36 37 40 41 42 43 44 45 46 66 67 68 69 70
+    '*' (42) 60
+    '+' (43) 57
+    '-' (45) 58 63
+    '/' (47) 61
+    ';' (59) 5 6 12 18 26 27 36 37 40 41 42 43 44 45 46
+    '<' (60) 52
+    '=' (61) 8 10 19 20
+    '>' (62) 53
+    '{' (123) 24 25
+    '}' (125) 24 25
+    error (256)
+    T_INT (258) 5
+    T_STRING (259) 6
+    T_IF (260) 21 22
+    T_ELSE (261) 22
+    T_WHILE (262) 23
+    T_PRINT (263) 26 27
+    T_OPEN (264) 36 37
+    T_PLAY (265) 40
+    T_PAUSE (266) 41
+    T_STOP (267) 42
+    T_SEEK (268) 43
+    T_FORWARD (269) 44
+    T_REWIND (270) 45
+    T_WAIT (271) 46
+    T_POSITION (272) 67
+    T_DURATION (273) 68
+    T_ENDED (274) 69
+    T_IS_PLAYING (275) 70
+    T_EQ (276) 49
+    T_NE (277) 50
+    T_LE (278) 54
+    T_GE (279) 55
+    T_ERROR (280)
+    T_IDENT <sval> (281) 5 6 19 20 65
+    T_STRING_LIT <sval> (282) 10 20 27 36
+    T_NUMBER <ival> (283) 64
+    LOWER_THAN_ELSE (284)
+    UMINUS (285)
+
+
+Nonterminals, with rules where they appear
+
+    $accept (43)
+        on left: 0
+    program <node> (44)
+        on left: 1 2
+        on right: 0
+    stmtlist <list> (45)
+        on left: 3 4
+        on right: 2 4 25
+    decl <node> (46)
+        on left: 5 6
+        on right: 11
+    optInitNum <node> (47)
+        on left: 7 8
+        on right: 5
+    optInitStr <node> (48)
+        on left: 9 10
+        on right: 6
+    stmt <node> (49)
+        on left: 11 12 13 14 15 16 17 18
+        on right: 3 4 21 22 23
+    assign <node> (50)
+        on left: 19 20
+        on right: 12
+    ifStmt <node> (51)
+        on left: 21 22
+        on right: 13
+    whileStmt <node> (52)
+        on left: 23
+        on right: 14
+    block <node> (53)
+        on left: 24 25
+        on right: 15
+    printStmt <node> (54)
+        on left: 26 27
+        on right: 16
+    streamStmt <node> (55)
+        on left: 28 29 30 31 32 33 34 35
+        on right: 17
+    openStmt <node> (56)
+        on left: 36 37
+        on right: 28
+    optExpr <node> (57)
+        on left: 38 39
+        on right: 40
+    playStmt <node> (58)
+        on left: 40
+        on right: 29
+    pauseStmt <node> (59)
+        on left: 41
+        on right: 30
+    stopStmt <node> (60)
+        on left: 42
+        on right: 31
+    seekStmt <node> (61)
+        on left: 43
+        on right: 32
+    forwardStmt <node> (62)
+        on left: 44
+        on right: 33
+    rewindStmt <node> (63)
+        on left: 45
+        on right: 34
+    waitStmt <node> (64)
+        on left: 46
+        on right: 35
+    expr <node> (65)
+        on left: 47
+        on right: 8 19 21 22 23 26 37 39 43 44 45 46 66
+    equality <node> (66)
+        on left: 48 49 50
+        on right: 47 49 50
+    relational <node> (67)
+        on left: 51 52 53 54 55
+        on right: 48 49 50 52 53 54 55
+    additive <node> (68)
+        on left: 56 57 58
+        on right: 51 52 53 54 55 57 58
+    term <node> (69)
+        on left: 59 60 61
+        on right: 56 57 58 60 61
+    factor <node> (70)
+        on left: 62 63
+        on right: 59 60 61 63
+    primary <node> (71)
+        on left: 64 65 66 67 68 69 70
+        on right: 62
+
+
+State 0
+
+    0 $accept: • program $end
+
+    T_INT      shift, and go to state 1
+    T_STRING   shift, and go to state 2
+    T_IF       shift, and go to state 3
+    T_WHILE    shift, and go to state 4
+    T_PRINT    shift, and go to state 5
+    T_OPEN     shift, and go to state 6
+    T_PLAY     shift, and go to state 7
+    T_PAUSE    shift, and go to state 8
+    T_STOP     shift, and go to state 9
+    T_SEEK     shift, and go to state 10
+    T_FORWARD  shift, and go to state 11
+    T_REWIND   shift, and go to state 12
+    T_WAIT     shift, and go to state 13
+    T_IDENT    shift, and go to state 14
+    ';'        shift, and go to state 15
+    '{'        shift, and go to state 16
+
+    $default  reduce using rule 1 (program)
+
+    program      go to state 17
+    stmtlist     go to state 18
+    decl         go to state 19
+    stmt         go to state 20
+    assign       go to state 21
+    ifStmt       go to state 22
+    whileStmt    go to state 23
+    block        go to state 24
+    printStmt    go to state 25
+    streamStmt   go to state 26
+    openStmt     go to state 27
+    playStmt     go to state 28
+    pauseStmt    go to state 29
+    stopStmt     go to state 30
+    seekStmt     go to state 31
+    forwardStmt  go to state 32
+    rewindStmt   go to state 33
+    waitStmt     go to state 34
+
+
+State 1
+
+    5 decl: T_INT • T_IDENT optInitNum ';'
+
+    T_IDENT  shift, and go to state 35
+
+
+State 2
+
+    6 decl: T_STRING • T_IDENT optInitStr ';'
+
+    T_IDENT  shift, and go to state 36
+
+
+State 3
+
+   21 ifStmt: T_IF • '(' expr ')' stmt
+   22       | T_IF • '(' expr ')' stmt T_ELSE stmt
+
+    '('  shift, and go to state 37
+
+
+State 4
+
+   23 whileStmt: T_WHILE • '(' expr ')' stmt
+
+    '('  shift, and go to state 38
+
+
+State 5
+
+   26 printStmt: T_PRINT • '(' expr ')' ';'
+   27          | T_PRINT • '(' T_STRING_LIT ')' ';'
+
+    '('  shift, and go to state 39
+
+
+State 6
+
+   36 openStmt: T_OPEN • '(' T_STRING_LIT ')' ';'
+   37         | T_OPEN • '(' expr ')' ';'
+
+    '('  shift, and go to state 40
+
+
+State 7
+
+   40 playStmt: T_PLAY • '(' optExpr ')' ';'
+
+    '('  shift, and go to state 41
+
+
+State 8
+
+   41 pauseStmt: T_PAUSE • '(' ')' ';'
+
+    '('  shift, and go to state 42
+
+
+State 9
+
+   42 stopStmt: T_STOP • '(' ')' ';'
+
+    '('  shift, and go to state 43
+
+
+State 10
+
+   43 seekStmt: T_SEEK • '(' expr ')' ';'
+
+    '('  shift, and go to state 44
+
+
+State 11
+
+   44 forwardStmt: T_FORWARD • '(' expr ')' ';'
+
+    '('  shift, and go to state 45
+
+
+State 12
+
+   45 rewindStmt: T_REWIND • '(' expr ')' ';'
+
+    '('  shift, and go to state 46
+
+
+State 13
+
+   46 waitStmt: T_WAIT • '(' expr ')' ';'
+
+    '('  shift, and go to state 47
+
+
+State 14
+
+   19 assign: T_IDENT • '=' expr
+   20       | T_IDENT • '=' T_STRING_LIT
+
+    '='  shift, and go to state 48
+
+
+State 15
+
+   18 stmt: ';' •
+
+    $default  reduce using rule 18 (stmt)
+
+
+State 16
+
+   24 block: '{' • '}'
+   25      | '{' • stmtlist '}'
+
+    T_INT      shift, and go to state 1
+    T_STRING   shift, and go to state 2
+    T_IF       shift, and go to state 3
+    T_WHILE    shift, and go to state 4
+    T_PRINT    shift, and go to state 5
+    T_OPEN     shift, and go to state 6
+    T_PLAY     shift, and go to state 7
+    T_PAUSE    shift, and go to state 8
+    T_STOP     shift, and go to state 9
+    T_SEEK     shift, and go to state 10
+    T_FORWARD  shift, and go to state 11
+    T_REWIND   shift, and go to state 12
+    T_WAIT     shift, and go to state 13
+    T_IDENT    shift, and go to state 14
+    ';'        shift, and go to state 15
+    '{'        shift, and go to state 16
+    '}'        shift, and go to state 49
+
+    stmtlist     go to state 50
+    decl         go to state 19
+    stmt         go to state 20
+    assign       go to state 21
+    ifStmt       go to state 22
+    whileStmt    go to state 23
+    block        go to state 24
+    printStmt    go to state 25
+    streamStmt   go to state 26
+    openStmt     go to state 27
+    playStmt     go to state 28
+    pauseStmt    go to state 29
+    stopStmt     go to state 30
+    seekStmt     go to state 31
+    forwardStmt  go to state 32
+    rewindStmt   go to state 33
+    waitStmt     go to state 34
+
+
+State 17
+
+    0 $accept: program • $end
+
+    $end  shift, and go to state 51
+
+
+State 18
+
+    2 program: stmtlist •
+    4 stmtlist: stmtlist • stmt
+
+    T_INT      shift, and go to state 1
+    T_STRING   shift, and go to state 2
+    T_IF       shift, and go to state 3
+    T_WHILE    shift, and go to state 4
+    T_PRINT    shift, and go to state 5
+    T_OPEN     shift, and go to state 6
+    T_PLAY     shift, and go to state 7
+    T_PAUSE    shift, and go to state 8
+    T_STOP     shift, and go to state 9
+    T_SEEK     shift, and go to state 10
+    T_FORWARD  shift, and go to state 11
+    T_REWIND   shift, and go to state 12
+    T_WAIT     shift, and go to state 13
+    T_IDENT    shift, and go to state 14
+    ';'        shift, and go to state 15
+    '{'        shift, and go to state 16
+
+    $default  reduce using rule 2 (program)
+
+    decl         go to state 19
+    stmt         go to state 52
+    assign       go to state 21
+    ifStmt       go to state 22
+    whileStmt    go to state 23
+    block        go to state 24
+    printStmt    go to state 25
+    streamStmt   go to state 26
+    openStmt     go to state 27
+    playStmt     go to state 28
+    pauseStmt    go to state 29
+    stopStmt     go to state 30
+    seekStmt     go to state 31
+    forwardStmt  go to state 32
+    rewindStmt   go to state 33
+    waitStmt     go to state 34
+
+
+State 19
+
+   11 stmt: decl •
+
+    $default  reduce using rule 11 (stmt)
+
+
+State 20
+
+    3 stmtlist: stmt •
+
+    $default  reduce using rule 3 (stmtlist)
+
+
+State 21
+
+   12 stmt: assign • ';'
+
+    ';'  shift, and go to state 53
+
+
+State 22
+
+   13 stmt: ifStmt •
+
+    $default  reduce using rule 13 (stmt)
+
+
+State 23
+
+   14 stmt: whileStmt •
+
+    $default  reduce using rule 14 (stmt)
+
+
+State 24
+
+   15 stmt: block •
+
+    $default  reduce using rule 15 (stmt)
+
+
+State 25
+
+   16 stmt: printStmt •
+
+    $default  reduce using rule 16 (stmt)
+
+
+State 26
+
+   17 stmt: streamStmt •
+
+    $default  reduce using rule 17 (stmt)
+
+
+State 27
+
+   28 streamStmt: openStmt •
+
+    $default  reduce using rule 28 (streamStmt)
+
+
+State 28
+
+   29 streamStmt: playStmt •
+
+    $default  reduce using rule 29 (streamStmt)
+
+
+State 29
+
+   30 streamStmt: pauseStmt •
+
+    $default  reduce using rule 30 (streamStmt)
+
+
+State 30
+
+   31 streamStmt: stopStmt •
+
+    $default  reduce using rule 31 (streamStmt)
+
+
+State 31
+
+   32 streamStmt: seekStmt •
+
+    $default  reduce using rule 32 (streamStmt)
+
+
+State 32
+
+   33 streamStmt: forwardStmt •
+
+    $default  reduce using rule 33 (streamStmt)
+
+
+State 33
+
+   34 streamStmt: rewindStmt •
+
+    $default  reduce using rule 34 (streamStmt)
+
+
+State 34
+
+   35 streamStmt: waitStmt •
+
+    $default  reduce using rule 35 (streamStmt)
+
+
+State 35
+
+    5 decl: T_INT T_IDENT • optInitNum ';'
+
+    '='  shift, and go to state 54
+
+    $default  reduce using rule 7 (optInitNum)
+
+    optInitNum  go to state 55
+
+
+State 36
+
+    6 decl: T_STRING T_IDENT • optInitStr ';'
+
+    '='  shift, and go to state 56
+
+    $default  reduce using rule 9 (optInitStr)
+
+    optInitStr  go to state 57
+
+
+State 37
+
+   21 ifStmt: T_IF '(' • expr ')' stmt
+   22       | T_IF '(' • expr ')' stmt T_ELSE stmt
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    expr        go to state 66
+    equality    go to state 67
+    relational  go to state 68
+    additive    go to state 69
+    term        go to state 70
+    factor      go to state 71
+    primary     go to state 72
+
+
+State 38
+
+   23 whileStmt: T_WHILE '(' • expr ')' stmt
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    expr        go to state 73
+    equality    go to state 67
+    relational  go to state 68
+    additive    go to state 69
+    term        go to state 70
+    factor      go to state 71
+    primary     go to state 72
+
+
+State 39
+
+   26 printStmt: T_PRINT '(' • expr ')' ';'
+   27          | T_PRINT '(' • T_STRING_LIT ')' ';'
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_STRING_LIT  shift, and go to state 74
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    expr        go to state 75
+    equality    go to state 67
+    relational  go to state 68
+    additive    go to state 69
+    term        go to state 70
+    factor      go to state 71
+    primary     go to state 72
+
+
+State 40
+
+   36 openStmt: T_OPEN '(' • T_STRING_LIT ')' ';'
+   37         | T_OPEN '(' • expr ')' ';'
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_STRING_LIT  shift, and go to state 76
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    expr        go to state 77
+    equality    go to state 67
+    relational  go to state 68
+    additive    go to state 69
+    term        go to state 70
+    factor      go to state 71
+    primary     go to state 72
+
+
+State 41
+
+   40 playStmt: T_PLAY '(' • optExpr ')' ';'
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    $default  reduce using rule 38 (optExpr)
+
+    optExpr     go to state 78
+    expr        go to state 79
+    equality    go to state 67
+    relational  go to state 68
+    additive    go to state 69
+    term        go to state 70
+    factor      go to state 71
+    primary     go to state 72
+
+
+State 42
+
+   41 pauseStmt: T_PAUSE '(' • ')' ';'
+
+    ')'  shift, and go to state 80
+
+
+State 43
+
+   42 stopStmt: T_STOP '(' • ')' ';'
+
+    ')'  shift, and go to state 81
+
+
+State 44
+
+   43 seekStmt: T_SEEK '(' • expr ')' ';'
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    expr        go to state 82
+    equality    go to state 67
+    relational  go to state 68
+    additive    go to state 69
+    term        go to state 70
+    factor      go to state 71
+    primary     go to state 72
+
+
+State 45
+
+   44 forwardStmt: T_FORWARD '(' • expr ')' ';'
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    expr        go to state 83
+    equality    go to state 67
+    relational  go to state 68
+    additive    go to state 69
+    term        go to state 70
+    factor      go to state 71
+    primary     go to state 72
+
+
+State 46
+
+   45 rewindStmt: T_REWIND '(' • expr ')' ';'
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    expr        go to state 84
+    equality    go to state 67
+    relational  go to state 68
+    additive    go to state 69
+    term        go to state 70
+    factor      go to state 71
+    primary     go to state 72
+
+
+State 47
+
+   46 waitStmt: T_WAIT '(' • expr ')' ';'
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    expr        go to state 85
+    equality    go to state 67
+    relational  go to state 68
+    additive    go to state 69
+    term        go to state 70
+    factor      go to state 71
+    primary     go to state 72
+
+
+State 48
+
+   19 assign: T_IDENT '=' • expr
+   20       | T_IDENT '=' • T_STRING_LIT
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_STRING_LIT  shift, and go to state 86
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    expr        go to state 87
+    equality    go to state 67
+    relational  go to state 68
+    additive    go to state 69
+    term        go to state 70
+    factor      go to state 71
+    primary     go to state 72
+
+
+State 49
+
+   24 block: '{' '}' •
+
+    $default  reduce using rule 24 (block)
+
+
+State 50
+
+    4 stmtlist: stmtlist • stmt
+   25 block: '{' stmtlist • '}'
+
+    T_INT      shift, and go to state 1
+    T_STRING   shift, and go to state 2
+    T_IF       shift, and go to state 3
+    T_WHILE    shift, and go to state 4
+    T_PRINT    shift, and go to state 5
+    T_OPEN     shift, and go to state 6
+    T_PLAY     shift, and go to state 7
+    T_PAUSE    shift, and go to state 8
+    T_STOP     shift, and go to state 9
+    T_SEEK     shift, and go to state 10
+    T_FORWARD  shift, and go to state 11
+    T_REWIND   shift, and go to state 12
+    T_WAIT     shift, and go to state 13
+    T_IDENT    shift, and go to state 14
+    ';'        shift, and go to state 15
+    '{'        shift, and go to state 16
+    '}'        shift, and go to state 88
+
+    decl         go to state 19
+    stmt         go to state 52
+    assign       go to state 21
+    ifStmt       go to state 22
+    whileStmt    go to state 23
+    block        go to state 24
+    printStmt    go to state 25
+    streamStmt   go to state 26
+    openStmt     go to state 27
+    playStmt     go to state 28
+    pauseStmt    go to state 29
+    stopStmt     go to state 30
+    seekStmt     go to state 31
+    forwardStmt  go to state 32
+    rewindStmt   go to state 33
+    waitStmt     go to state 34
+
+
+State 51
+
+    0 $accept: program $end •
+
+    $default  accept
+
+
+State 52
+
+    4 stmtlist: stmtlist stmt •
+
+    $default  reduce using rule 4 (stmtlist)
+
+
+State 53
+
+   12 stmt: assign ';' •
+
+    $default  reduce using rule 12 (stmt)
+
+
+State 54
+
+    8 optInitNum: '=' • expr
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    expr        go to state 89
+    equality    go to state 67
+    relational  go to state 68
+    additive    go to state 69
+    term        go to state 70
+    factor      go to state 71
+    primary     go to state 72
+
+
+State 55
+
+    5 decl: T_INT T_IDENT optInitNum • ';'
+
+    ';'  shift, and go to state 90
+
+
+State 56
+
+   10 optInitStr: '=' • T_STRING_LIT
+
+    T_STRING_LIT  shift, and go to state 91
+
+
+State 57
+
+    6 decl: T_STRING T_IDENT optInitStr • ';'
+
+    ';'  shift, and go to state 92
+
+
+State 58
+
+   67 primary: T_POSITION • '(' ')'
+
+    '('  shift, and go to state 93
+
+
+State 59
+
+   68 primary: T_DURATION • '(' ')'
+
+    '('  shift, and go to state 94
+
+
+State 60
+
+   69 primary: T_ENDED • '(' ')'
+
+    '('  shift, and go to state 95
+
+
+State 61
+
+   70 primary: T_IS_PLAYING • '(' ')'
+
+    '('  shift, and go to state 96
+
+
+State 62
+
+   65 primary: T_IDENT •
+
+    $default  reduce using rule 65 (primary)
+
+
+State 63
+
+   64 primary: T_NUMBER •
+
+    $default  reduce using rule 64 (primary)
+
+
+State 64
+
+   63 factor: '-' • factor
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    factor   go to state 97
+    primary  go to state 72
+
+
+State 65
+
+   66 primary: '(' • expr ')'
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    expr        go to state 98
+    equality    go to state 67
+    relational  go to state 68
+    additive    go to state 69
+    term        go to state 70
+    factor      go to state 71
+    primary     go to state 72
+
+
+State 66
+
+   21 ifStmt: T_IF '(' expr • ')' stmt
+   22       | T_IF '(' expr • ')' stmt T_ELSE stmt
+
+    ')'  shift, and go to state 99
+
+
+State 67
+
+   47 expr: equality •
+   49 equality: equality • T_EQ relational
+   50         | equality • T_NE relational
+
+    T_EQ  shift, and go to state 100
+    T_NE  shift, and go to state 101
+
+    $default  reduce using rule 47 (expr)
+
+
+State 68
+
+   48 equality: relational •
+   52 relational: relational • '<' additive
+   53           | relational • '>' additive
+   54           | relational • T_LE additive
+   55           | relational • T_GE additive
+
+    T_LE  shift, and go to state 102
+    T_GE  shift, and go to state 103
+    '<'   shift, and go to state 104
+    '>'   shift, and go to state 105
+
+    $default  reduce using rule 48 (equality)
+
+
+State 69
+
+   51 relational: additive •
+   57 additive: additive • '+' term
+   58         | additive • '-' term
+
+    '+'  shift, and go to state 106
+    '-'  shift, and go to state 107
+
+    $default  reduce using rule 51 (relational)
+
+
+State 70
+
+   56 additive: term •
+   60 term: term • '*' factor
+   61     | term • '/' factor
+
+    '*'  shift, and go to state 108
+    '/'  shift, and go to state 109
+
+    $default  reduce using rule 56 (additive)
+
+
+State 71
+
+   59 term: factor •
+
+    $default  reduce using rule 59 (term)
+
+
+State 72
+
+   62 factor: primary •
+
+    $default  reduce using rule 62 (factor)
+
+
+State 73
+
+   23 whileStmt: T_WHILE '(' expr • ')' stmt
+
+    ')'  shift, and go to state 110
+
+
+State 74
+
+   27 printStmt: T_PRINT '(' T_STRING_LIT • ')' ';'
+
+    ')'  shift, and go to state 111
+
+
+State 75
+
+   26 printStmt: T_PRINT '(' expr • ')' ';'
+
+    ')'  shift, and go to state 112
+
+
+State 76
+
+   36 openStmt: T_OPEN '(' T_STRING_LIT • ')' ';'
+
+    ')'  shift, and go to state 113
+
+
+State 77
+
+   37 openStmt: T_OPEN '(' expr • ')' ';'
+
+    ')'  shift, and go to state 114
+
+
+State 78
+
+   40 playStmt: T_PLAY '(' optExpr • ')' ';'
+
+    ')'  shift, and go to state 115
+
+
+State 79
+
+   39 optExpr: expr •
+
+    $default  reduce using rule 39 (optExpr)
+
+
+State 80
+
+   41 pauseStmt: T_PAUSE '(' ')' • ';'
+
+    ';'  shift, and go to state 116
+
+
+State 81
+
+   42 stopStmt: T_STOP '(' ')' • ';'
+
+    ';'  shift, and go to state 117
+
+
+State 82
+
+   43 seekStmt: T_SEEK '(' expr • ')' ';'
+
+    ')'  shift, and go to state 118
+
+
+State 83
+
+   44 forwardStmt: T_FORWARD '(' expr • ')' ';'
+
+    ')'  shift, and go to state 119
+
+
+State 84
+
+   45 rewindStmt: T_REWIND '(' expr • ')' ';'
+
+    ')'  shift, and go to state 120
+
+
+State 85
+
+   46 waitStmt: T_WAIT '(' expr • ')' ';'
+
+    ')'  shift, and go to state 121
+
+
+State 86
+
+   20 assign: T_IDENT '=' T_STRING_LIT •
+
+    $default  reduce using rule 20 (assign)
+
+
+State 87
+
+   19 assign: T_IDENT '=' expr •
+
+    $default  reduce using rule 19 (assign)
+
+
+State 88
+
+   25 block: '{' stmtlist '}' •
+
+    $default  reduce using rule 25 (block)
+
+
+State 89
+
+    8 optInitNum: '=' expr •
+
+    $default  reduce using rule 8 (optInitNum)
+
+
+State 90
+
+    5 decl: T_INT T_IDENT optInitNum ';' •
+
+    $default  reduce using rule 5 (decl)
+
+
+State 91
+
+   10 optInitStr: '=' T_STRING_LIT •
+
+    $default  reduce using rule 10 (optInitStr)
+
+
+State 92
+
+    6 decl: T_STRING T_IDENT optInitStr ';' •
+
+    $default  reduce using rule 6 (decl)
+
+
+State 93
+
+   67 primary: T_POSITION '(' • ')'
+
+    ')'  shift, and go to state 122
+
+
+State 94
+
+   68 primary: T_DURATION '(' • ')'
+
+    ')'  shift, and go to state 123
+
+
+State 95
+
+   69 primary: T_ENDED '(' • ')'
+
+    ')'  shift, and go to state 124
+
+
+State 96
+
+   70 primary: T_IS_PLAYING '(' • ')'
+
+    ')'  shift, and go to state 125
+
+
+State 97
+
+   63 factor: '-' factor •
+
+    $default  reduce using rule 63 (factor)
+
+
+State 98
+
+   66 primary: '(' expr • ')'
+
+    ')'  shift, and go to state 126
+
+
+State 99
+
+   21 ifStmt: T_IF '(' expr ')' • stmt
+   22       | T_IF '(' expr ')' • stmt T_ELSE stmt
+
+    T_INT      shift, and go to state 1
+    T_STRING   shift, and go to state 2
+    T_IF       shift, and go to state 3
+    T_WHILE    shift, and go to state 4
+    T_PRINT    shift, and go to state 5
+    T_OPEN     shift, and go to state 6
+    T_PLAY     shift, and go to state 7
+    T_PAUSE    shift, and go to state 8
+    T_STOP     shift, and go to state 9
+    T_SEEK     shift, and go to state 10
+    T_FORWARD  shift, and go to state 11
+    T_REWIND   shift, and go to state 12
+    T_WAIT     shift, and go to state 13
+    T_IDENT    shift, and go to state 14
+    ';'        shift, and go to state 15
+    '{'        shift, and go to state 16
+
+    decl         go to state 19
+    stmt         go to state 127
+    assign       go to state 21
+    ifStmt       go to state 22
+    whileStmt    go to state 23
+    block        go to state 24
+    printStmt    go to state 25
+    streamStmt   go to state 26
+    openStmt     go to state 27
+    playStmt     go to state 28
+    pauseStmt    go to state 29
+    stopStmt     go to state 30
+    seekStmt     go to state 31
+    forwardStmt  go to state 32
+    rewindStmt   go to state 33
+    waitStmt     go to state 34
+
+
+State 100
+
+   49 equality: equality T_EQ • relational
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    relational  go to state 128
+    additive    go to state 69
+    term        go to state 70
+    factor      go to state 71
+    primary     go to state 72
+
+
+State 101
+
+   50 equality: equality T_NE • relational
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    relational  go to state 129
+    additive    go to state 69
+    term        go to state 70
+    factor      go to state 71
+    primary     go to state 72
+
+
+State 102
+
+   54 relational: relational T_LE • additive
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    additive  go to state 130
+    term      go to state 70
+    factor    go to state 71
+    primary   go to state 72
+
+
+State 103
+
+   55 relational: relational T_GE • additive
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    additive  go to state 131
+    term      go to state 70
+    factor    go to state 71
+    primary   go to state 72
+
+
+State 104
+
+   52 relational: relational '<' • additive
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    additive  go to state 132
+    term      go to state 70
+    factor    go to state 71
+    primary   go to state 72
+
+
+State 105
+
+   53 relational: relational '>' • additive
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    additive  go to state 133
+    term      go to state 70
+    factor    go to state 71
+    primary   go to state 72
+
+
+State 106
+
+   57 additive: additive '+' • term
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    term     go to state 134
+    factor   go to state 71
+    primary  go to state 72
+
+
+State 107
+
+   58 additive: additive '-' • term
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    term     go to state 135
+    factor   go to state 71
+    primary  go to state 72
+
+
+State 108
+
+   60 term: term '*' • factor
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    factor   go to state 136
+    primary  go to state 72
+
+
+State 109
+
+   61 term: term '/' • factor
+
+    T_POSITION    shift, and go to state 58
+    T_DURATION    shift, and go to state 59
+    T_ENDED       shift, and go to state 60
+    T_IS_PLAYING  shift, and go to state 61
+    T_IDENT       shift, and go to state 62
+    T_NUMBER      shift, and go to state 63
+    '-'           shift, and go to state 64
+    '('           shift, and go to state 65
+
+    factor   go to state 137
+    primary  go to state 72
+
+
+State 110
+
+   23 whileStmt: T_WHILE '(' expr ')' • stmt
+
+    T_INT      shift, and go to state 1
+    T_STRING   shift, and go to state 2
+    T_IF       shift, and go to state 3
+    T_WHILE    shift, and go to state 4
+    T_PRINT    shift, and go to state 5
+    T_OPEN     shift, and go to state 6
+    T_PLAY     shift, and go to state 7
+    T_PAUSE    shift, and go to state 8
+    T_STOP     shift, and go to state 9
+    T_SEEK     shift, and go to state 10
+    T_FORWARD  shift, and go to state 11
+    T_REWIND   shift, and go to state 12
+    T_WAIT     shift, and go to state 13
+    T_IDENT    shift, and go to state 14
+    ';'        shift, and go to state 15
+    '{'        shift, and go to state 16
+
+    decl         go to state 19
+    stmt         go to state 138
+    assign       go to state 21
+    ifStmt       go to state 22
+    whileStmt    go to state 23
+    block        go to state 24
+    printStmt    go to state 25
+    streamStmt   go to state 26
+    openStmt     go to state 27
+    playStmt     go to state 28
+    pauseStmt    go to state 29
+    stopStmt     go to state 30
+    seekStmt     go to state 31
+    forwardStmt  go to state 32
+    rewindStmt   go to state 33
+    waitStmt     go to state 34
+
+
+State 111
+
+   27 printStmt: T_PRINT '(' T_STRING_LIT ')' • ';'
+
+    ';'  shift, and go to state 139
+
+
+State 112
+
+   26 printStmt: T_PRINT '(' expr ')' • ';'
+
+    ';'  shift, and go to state 140
+
+
+State 113
+
+   36 openStmt: T_OPEN '(' T_STRING_LIT ')' • ';'
+
+    ';'  shift, and go to state 141
+
+
+State 114
+
+   37 openStmt: T_OPEN '(' expr ')' • ';'
+
+    ';'  shift, and go to state 142
+
+
+State 115
+
+   40 playStmt: T_PLAY '(' optExpr ')' • ';'
+
+    ';'  shift, and go to state 143
+
+
+State 116
+
+   41 pauseStmt: T_PAUSE '(' ')' ';' •
+
+    $default  reduce using rule 41 (pauseStmt)
+
+
+State 117
+
+   42 stopStmt: T_STOP '(' ')' ';' •
+
+    $default  reduce using rule 42 (stopStmt)
+
+
+State 118
+
+   43 seekStmt: T_SEEK '(' expr ')' • ';'
+
+    ';'  shift, and go to state 144
+
+
+State 119
+
+   44 forwardStmt: T_FORWARD '(' expr ')' • ';'
+
+    ';'  shift, and go to state 145
+
+
+State 120
+
+   45 rewindStmt: T_REWIND '(' expr ')' • ';'
+
+    ';'  shift, and go to state 146
+
+
+State 121
+
+   46 waitStmt: T_WAIT '(' expr ')' • ';'
+
+    ';'  shift, and go to state 147
+
+
+State 122
+
+   67 primary: T_POSITION '(' ')' •
+
+    $default  reduce using rule 67 (primary)
+
+
+State 123
+
+   68 primary: T_DURATION '(' ')' •
+
+    $default  reduce using rule 68 (primary)
+
+
+State 124
+
+   69 primary: T_ENDED '(' ')' •
+
+    $default  reduce using rule 69 (primary)
+
+
+State 125
+
+   70 primary: T_IS_PLAYING '(' ')' •
+
+    $default  reduce using rule 70 (primary)
+
+
+State 126
+
+   66 primary: '(' expr ')' •
+
+    $default  reduce using rule 66 (primary)
+
+
+State 127
+
+   21 ifStmt: T_IF '(' expr ')' stmt •
+   22       | T_IF '(' expr ')' stmt • T_ELSE stmt
+
+    $default  reduce using rule 21 (ifStmt)
+
+
+State 128
+
+   49 equality: equality T_EQ relational •
+   52 relational: relational • '<' additive
+   53           | relational • '>' additive
+   54           | relational • T_LE additive
+   55           | relational • T_GE additive
+
+    T_LE  shift, and go to state 102
+    T_GE  shift, and go to state 103
+    '<'   shift, and go to state 104
+    '>'   shift, and go to state 105
+
+    $default  reduce using rule 49 (equality)
+
+
+State 129
+
+   50 equality: equality T_NE relational •
+   52 relational: relational • '<' additive
+   53           | relational • '>' additive
+   54           | relational • T_LE additive
+   55           | relational • T_GE additive
+
+    T_LE  shift, and go to state 102
+    T_GE  shift, and go to state 103
+    '<'   shift, and go to state 104
+    '>'   shift, and go to state 105
+
+    $default  reduce using rule 50 (equality)
+
+
+State 130
+
+   54 relational: relational T_LE additive •
+   57 additive: additive • '+' term
+   58         | additive • '-' term
+
+    '+'  shift, and go to state 106
+    '-'  shift, and go to state 107
+
+    $default  reduce using rule 54 (relational)
+
+
+State 131
+
+   55 relational: relational T_GE additive •
+   57 additive: additive • '+' term
+   58         | additive • '-' term
+
+    '+'  shift, and go to state 106
+    '-'  shift, and go to state 107
+
+    $default  reduce using rule 55 (relational)
+
+
+State 132
+
+   52 relational: relational '<' additive •
+   57 additive: additive • '+' term
+   58         | additive • '-' term
+
+    '+'  shift, and go to state 106
+    '-'  shift, and go to state 107
+
+    $default  reduce using rule 52 (relational)
+
+
+State 133
+
+   53 relational: relational '>' additive •
+   57 additive: additive • '+' term
+   58         | additive • '-' term
+
+    '+'  shift, and go to state 106
+    '-'  shift, and go to state 107
+
+    $default  reduce using rule 53 (relational)
+
+
+State 134
+
+   57 additive: additive '+' term •
+   60 term: term • '*' factor
+   61     | term • '/' factor
+
+    '*'  shift, and go to state 108
+    '/'  shift, and go to state 109
+
+    $default  reduce using rule 57 (additive)
+
+
+State 135
+
+   58 additive: additive '-' term •
+   60 term: term • '*' factor
+   61     | term • '/' factor
+
+    '*'  shift, and go to state 108
+    '/'  shift, and go to state 109
+
+    $default  reduce using rule 58 (additive)
+
+
+State 136
+
+   60 term: term '*' factor •
+
+    $default  reduce using rule 60 (term)
+
+
+State 137
+
+   61 term: term '/' factor •
+
+    $default  reduce using rule 61 (term)
+
+
+State 138
+
+   23 whileStmt: T_WHILE '(' expr ')' stmt •
+
+    $default  reduce using rule 23 (whileStmt)
+
+
+State 139
+
+   27 printStmt: T_PRINT '(' T_STRING_LIT ')' ';' •
+
+    $default  reduce using rule 27 (printStmt)
+
+
+State 140
+
+   26 printStmt: T_PRINT '(' expr ')' ';' •
+
+    $default  reduce using rule 26 (printStmt)
+
+
+State 141
+
+   36 openStmt: T_OPEN '(' T_STRING_LIT ')' ';' •
+
+    $default  reduce using rule 36 (openStmt)
+
+
+State 142
+
+   37 openStmt: T_OPEN '(' expr ')' ';' •
+
+    $default  reduce using rule 37 (openStmt)
+
+
+State 143
+
+   40 playStmt: T_PLAY '(' optExpr ')' ';' •
+
+    $default  reduce using rule 40 (playStmt)
+
+
+State 144
+
+   43 seekStmt: T_SEEK '(' expr ')' ';' •
+
+    $default  reduce using rule 43 (seekStmt)
+
+
+State 145
+
+   44 forwardStmt: T_FORWARD '(' expr ')' ';' •
+
+    $default  reduce using rule 44 (forwardStmt)
+
+
+State 146
+
+   45 rewindStmt: T_REWIND '(' expr ')' ';' •
+
+    $default  reduce using rule 45 (rewindStmt)
+
+
+State 147
+
+   46 waitStmt: T_WAIT '(' expr ')' ';' •
+
+    $default  reduce using rule 46 (waitStmt)
