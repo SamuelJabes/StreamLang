@@ -1,0 +1,27 @@
+# Arquivos gerados por Flex/Bison
+lex.yy.c
+streamlang.tab.c
+streamlang.tab.h
+streamlang.output
+
+# Binário compilado
+streamlang
+
+# Assembly gerado
+*.asm
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

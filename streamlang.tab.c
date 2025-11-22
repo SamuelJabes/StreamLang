@@ -141,6 +141,296 @@ static void free_ast(Node* n){
   free(n);
 }
 
+/* --- Code Generation --- */
+static FILE* out = NULL;
+static int label_counter = 0;
+static int var_counter = 0;
+
+typedef struct VarEntry {
+  char* name;
+  int addr;
+  struct VarEntry* next;
+} VarEntry;
+
+static VarEntry* symtab = NULL;
+
+static int get_var_addr(const char* name) {
+  for (VarEntry* e = symtab; e; e = e->next) {
+    if (strcmp(e->name, name) == 0) return e->addr;
+  }
+  /* create new variable */
+  VarEntry* e = (VarEntry*)malloc(sizeof(VarEntry));
+  e->name = strdup(name);
+  e->addr = var_counter++;
+  e->next = symtab;
+  symtab = e;
+  return e->addr;
+}
+
+static int new_label() { return label_counter++; }
+
+static void gen_expr(Node* n);
+static void gen_stmt(Node* n);
+
+static void gen_expr(Node* n) {
+  if (!n) return;
+  NodeList* kids = n->kids;
+
+  switch(n->kind) {
+    case NK_NUMBER:
+      fprintf(out, "PUSH %d\n", n->ival);
+      break;
+
+    case NK_IDENT: {
+      int addr = get_var_addr(n->sval);
+      fprintf(out, "LOAD %d\n", addr);
+      break;
+    }
+
+    case NK_STRING:
+      /* strings are handled specially in print/open */
+      break;
+
+    case NK_ADD:
+      gen_expr(kids->node);       /* left */
+      gen_expr(kids->next->node); /* right */
+      fprintf(out, "ADD\n");
+      break;
+
+    case NK_SUB:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "SUB\n");
+      break;
+
+    case NK_MUL:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "MUL\n");
+      break;
+
+    case NK_DIV:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "DIV\n");
+      break;
+
+    case NK_NEG:
+      gen_expr(kids->node);
+      fprintf(out, "NEG\n");
+      break;
+
+    case NK_EQ:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "EQ\n");
+      break;
+
+    case NK_NE:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "NE\n");
+      break;
+
+    case NK_LT:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "LT\n");
+      break;
+
+    case NK_LE:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "LE\n");
+      break;
+
+    case NK_GT:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "GT\n");
+      break;
+
+    case NK_GE:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "GE\n");
+      break;
+
+    case NK_POS:
+      fprintf(out, "GET_POS\n");
+      break;
+
+    case NK_DUR:
+      fprintf(out, "GET_DUR\n");
+      break;
+
+    case NK_ENDED:
+      fprintf(out, "GET_ENDED\n");
+      break;
+
+    case NK_ISPLAYING:
+      fprintf(out, "GET_PLAYING\n");
+      break;
+
+    default:
+      break;
+  }
+}
+
+static void gen_stmt(Node* n) {
+  if (!n) return;
+  NodeList* kids = n->kids;
+
+  switch(n->kind) {
+    case NK_PROGRAM:
+      for (NodeList* k = kids; k; k = k->next) {
+        gen_stmt(k->node);
+      }
+      fprintf(out, "HALT\n");
+      break;
+
+    case NK_DECL_INT:
+      /* optionally initialize */
+      if (kids) {
+        gen_expr(kids->node);  /* initial value */
+        fprintf(out, "STORE %d\n", get_var_addr(n->sval));
+      } else {
+        fprintf(out, "PUSH 0\n");
+        fprintf(out, "STORE %d\n", get_var_addr(n->sval));
+      }
+      break;
+
+    case NK_DECL_STRING:
+      /* strings stored as-is; we'll handle them separately if needed */
+      break;
+
+    case NK_ASSIGN:
+      /* kids: [ident, expr/string] */
+      if (kids && kids->next) {
+        Node* lhs = kids->node;
+        Node* rhs = kids->next->node;
+        if (rhs->kind == NK_STRING) {
+          /* ignore for now - strings are tricky in simple VM */
+        } else {
+          gen_expr(rhs);
+          fprintf(out, "STORE %d\n", get_var_addr(lhs->sval));
+        }
+      }
+      break;
+
+    case NK_IF: {
+      int else_label = new_label();
+      int end_label = new_label();
+
+      /* condition */
+      gen_expr(kids->node);
+
+      if (kids->next && kids->next->next) {
+        /* has else branch */
+        fprintf(out, "JUMPZ L%d\n", else_label);
+        gen_stmt(kids->next->node);  /* then */
+        fprintf(out, "GOTO L%d\n", end_label);
+        fprintf(out, "L%d:\n", else_label);
+        gen_stmt(kids->next->next->node);  /* else */
+        fprintf(out, "L%d:\n", end_label);
+      } else {
+        /* no else */
+        fprintf(out, "JUMPZ L%d\n", end_label);
+        gen_stmt(kids->next->node);  /* then */
+        fprintf(out, "L%d:\n", end_label);
+      }
+      break;
+    }
+
+    case NK_WHILE: {
+      int loop_label = new_label();
+      int end_label = new_label();
+
+      fprintf(out, "L%d:\n", loop_label);
+      gen_expr(kids->node);  /* condition */
+      fprintf(out, "JUMPZ L%d\n", end_label);
+      gen_stmt(kids->next->node);  /* body */
+      fprintf(out, "GOTO L%d\n", loop_label);
+      fprintf(out, "L%d:\n", end_label);
+      break;
+    }
+
+    case NK_BLOCK:
+      for (NodeList* k = kids; k; k = k->next) {
+        gen_stmt(k->node);
+      }
+      break;
+
+    case NK_PRINT:
+      if (n->sval) {
+        /* print string literal */
+        fprintf(out, "PRINTS \"%s\"\n", n->sval);
+      } else if (kids) {
+        /* print expression */
+        gen_expr(kids->node);
+        fprintf(out, "PRINT\n");
+      }
+      break;
+
+    case NK_OPEN:
+      if (n->sval) {
+        fprintf(out, "OPEN \"%s\"\n", n->sval);
+      } else if (kids) {
+        /* numeric ID - ignore for now */
+      }
+      break;
+
+    case NK_PLAY:
+      if (kids) {
+        gen_expr(kids->node);
+        fprintf(out, "POP R0\n");
+        fprintf(out, "PLAY R0\n");
+      } else {
+        fprintf(out, "PLAY 1\n");
+      }
+      break;
+
+    case NK_PAUSE:
+      fprintf(out, "PAUSE\n");
+      break;
+
+    case NK_STOP:
+      fprintf(out, "STOP\n");
+      break;
+
+    case NK_SEEK:
+      gen_expr(kids->node);
+      fprintf(out, "POP R0\n");
+      fprintf(out, "SEEK R0\n");
+      break;
+
+    case NK_FORWARD:
+      gen_expr(kids->node);
+      fprintf(out, "POP R0\n");
+      fprintf(out, "FORWARD R0\n");
+      break;
+
+    case NK_REWIND:
+      gen_expr(kids->node);
+      fprintf(out, "POP R0\n");
+      fprintf(out, "REWIND R0\n");
+      break;
+
+    case NK_WAIT:
+      gen_expr(kids->node);
+      fprintf(out, "POP R0\n");
+      fprintf(out, "WAIT R0\n");
+      break;
+
+    case NK_LIST:
+      /* empty statement */
+      break;
+
+    default:
+      break;
+  }
+}
+
 /* lexer hooks */
 int yylex(void);
 extern int yylineno;
@@ -149,7 +439,7 @@ void yyerror(const char* s){
 }
 Node* g_root = NULL;
 
-#line 153 "streamlang.tab.c"
+#line 443 "streamlang.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -637,14 +927,14 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,   124,   124,   125,   129,   130,   134,   136,   141,   142,
-     146,   147,   151,   152,   153,   154,   155,   156,   157,   158,
-     162,   166,   174,   176,   181,   186,   188,   193,   195,   201,
-     202,   203,   204,   205,   206,   207,   208,   212,   214,   219,
-     220,   224,   229,   234,   239,   244,   249,   254,   260,   264,
-     265,   266,   270,   271,   272,   273,   274,   278,   279,   280,
-     284,   285,   286,   290,   291,   295,   296,   297,   298,   299,
-     300,   301
+       0,   414,   414,   415,   419,   420,   424,   426,   431,   432,
+     436,   437,   441,   442,   443,   444,   445,   446,   447,   448,
+     452,   456,   464,   466,   471,   476,   478,   483,   485,   491,
+     492,   493,   494,   495,   496,   497,   498,   502,   504,   509,
+     510,   514,   519,   524,   529,   534,   539,   544,   550,   554,
+     555,   556,   560,   561,   562,   563,   564,   568,   569,   570,
+     574,   575,   576,   580,   581,   585,   586,   587,   588,   589,
+     590,   591
 };
 #endif
 
@@ -1305,432 +1595,432 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* program: %empty  */
-#line 124 "streamlang.y"
+#line 414 "streamlang.y"
                                 { (yyval.node) = mk(NK_PROGRAM, yylineno, NULL, 0, NULL); g_root = (yyval.node); }
-#line 1311 "streamlang.tab.c"
+#line 1601 "streamlang.tab.c"
     break;
 
   case 3: /* program: stmtlist  */
-#line 125 "streamlang.y"
-                                { (yyval.node) = mk(NK_PROGRAM, yylineno, NULL, 0, (yyvsp[0].list));   g_root = (yyval.node); }
-#line 1317 "streamlang.tab.c"
+#line 415 "streamlang.y"
+                                { (yyval.node) = mk(NK_PROGRAM, yylineno, NULL, 0, rev((yyvsp[0].list)));   g_root = (yyval.node); }
+#line 1607 "streamlang.tab.c"
     break;
 
   case 4: /* stmtlist: stmt  */
-#line 129 "streamlang.y"
+#line 419 "streamlang.y"
                                 { (yyval.list) = cons((yyvsp[0].node), NULL); }
-#line 1323 "streamlang.tab.c"
+#line 1613 "streamlang.tab.c"
     break;
 
   case 5: /* stmtlist: stmtlist stmt  */
-#line 130 "streamlang.y"
+#line 420 "streamlang.y"
                                 { (yyval.list) = cons((yyvsp[0].node), (yyvsp[-1].list)); }
-#line 1329 "streamlang.tab.c"
+#line 1619 "streamlang.tab.c"
     break;
 
   case 6: /* decl: T_INT T_IDENT optInitNum ';'  */
-#line 135 "streamlang.y"
+#line 425 "streamlang.y"
       { (yyval.node) = mk(NK_DECL_INT, yylineno, (yyvsp[-2].sval), 0, (yyvsp[-1].node) ? cons((yyvsp[-1].node),NULL):NULL); free((yyvsp[-2].sval)); }
-#line 1335 "streamlang.tab.c"
+#line 1625 "streamlang.tab.c"
     break;
 
   case 7: /* decl: T_STRING T_IDENT optInitStr ';'  */
-#line 137 "streamlang.y"
+#line 427 "streamlang.y"
       { (yyval.node) = mk(NK_DECL_STRING, yylineno, (yyvsp[-2].sval), 0, (yyvsp[-1].node) ? cons((yyvsp[-1].node),NULL):NULL); free((yyvsp[-2].sval)); }
-#line 1341 "streamlang.tab.c"
+#line 1631 "streamlang.tab.c"
     break;
 
   case 8: /* optInitNum: %empty  */
-#line 141 "streamlang.y"
+#line 431 "streamlang.y"
                                 { (yyval.node) = NULL; }
-#line 1347 "streamlang.tab.c"
+#line 1637 "streamlang.tab.c"
     break;
 
   case 9: /* optInitNum: '=' expr  */
-#line 142 "streamlang.y"
+#line 432 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1353 "streamlang.tab.c"
+#line 1643 "streamlang.tab.c"
     break;
 
   case 10: /* optInitStr: %empty  */
-#line 146 "streamlang.y"
+#line 436 "streamlang.y"
                                 { (yyval.node) = NULL; }
-#line 1359 "streamlang.tab.c"
+#line 1649 "streamlang.tab.c"
     break;
 
   case 11: /* optInitStr: '=' T_STRING_LIT  */
-#line 147 "streamlang.y"
+#line 437 "streamlang.y"
                                 { (yyval.node) = mk(NK_STRING, yylineno, (yyvsp[0].sval), 0, NULL); free((yyvsp[0].sval)); }
-#line 1365 "streamlang.tab.c"
+#line 1655 "streamlang.tab.c"
     break;
 
   case 12: /* stmt: decl  */
-#line 151 "streamlang.y"
+#line 441 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1371 "streamlang.tab.c"
+#line 1661 "streamlang.tab.c"
     break;
 
   case 13: /* stmt: assign ';'  */
-#line 152 "streamlang.y"
+#line 442 "streamlang.y"
                                 { (yyval.node) = (yyvsp[-1].node); }
-#line 1377 "streamlang.tab.c"
+#line 1667 "streamlang.tab.c"
     break;
 
   case 14: /* stmt: ifStmt  */
-#line 153 "streamlang.y"
+#line 443 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1383 "streamlang.tab.c"
+#line 1673 "streamlang.tab.c"
     break;
 
   case 15: /* stmt: whileStmt  */
-#line 154 "streamlang.y"
+#line 444 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1389 "streamlang.tab.c"
+#line 1679 "streamlang.tab.c"
     break;
 
   case 16: /* stmt: block  */
-#line 155 "streamlang.y"
+#line 445 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1395 "streamlang.tab.c"
+#line 1685 "streamlang.tab.c"
     break;
 
   case 17: /* stmt: printStmt  */
-#line 156 "streamlang.y"
+#line 446 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1401 "streamlang.tab.c"
+#line 1691 "streamlang.tab.c"
     break;
 
   case 18: /* stmt: streamStmt  */
-#line 157 "streamlang.y"
+#line 447 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1407 "streamlang.tab.c"
+#line 1697 "streamlang.tab.c"
     break;
 
   case 19: /* stmt: ';'  */
-#line 158 "streamlang.y"
+#line 448 "streamlang.y"
                                 { (yyval.node) = mk(NK_LIST, yylineno, NULL, 0, NULL); }
-#line 1413 "streamlang.tab.c"
+#line 1703 "streamlang.tab.c"
     break;
 
   case 20: /* assign: T_IDENT '=' expr  */
-#line 163 "streamlang.y"
+#line 453 "streamlang.y"
       { Node* id=mk(NK_IDENT,yylineno,(yyvsp[-2].sval),0,NULL);
         (yyval.node)=mk(NK_ASSIGN,yylineno,NULL,0,rev(cons((yyvsp[0].node),cons(id,NULL))));
         free((yyvsp[-2].sval)); }
-#line 1421 "streamlang.tab.c"
+#line 1711 "streamlang.tab.c"
     break;
 
   case 21: /* assign: T_IDENT '=' T_STRING_LIT  */
-#line 167 "streamlang.y"
+#line 457 "streamlang.y"
       { Node* id=mk(NK_IDENT,yylineno,(yyvsp[-2].sval),0,NULL);
         Node* s=mk(NK_STRING,yylineno,(yyvsp[0].sval),0,NULL);
         (yyval.node)=mk(NK_ASSIGN,yylineno,NULL,0,rev(cons(s,cons(id,NULL))));
         free((yyvsp[-2].sval)); free((yyvsp[0].sval)); }
-#line 1430 "streamlang.tab.c"
+#line 1720 "streamlang.tab.c"
     break;
 
   case 22: /* ifStmt: T_IF '(' expr ')' stmt  */
-#line 175 "streamlang.y"
+#line 465 "streamlang.y"
       { (yyval.node) = mk(NK_IF, yylineno, NULL, 0, rev(cons((yyvsp[0].node), cons((yyvsp[-2].node), NULL)))); }
-#line 1436 "streamlang.tab.c"
+#line 1726 "streamlang.tab.c"
     break;
 
   case 23: /* ifStmt: T_IF '(' expr ')' stmt T_ELSE stmt  */
-#line 177 "streamlang.y"
+#line 467 "streamlang.y"
       { (yyval.node) = mk(NK_IF, yylineno, NULL, 0, rev(cons((yyvsp[0].node), cons((yyvsp[-2].node), cons((yyvsp[-4].node), NULL))))); }
-#line 1442 "streamlang.tab.c"
+#line 1732 "streamlang.tab.c"
     break;
 
   case 24: /* whileStmt: T_WHILE '(' expr ')' stmt  */
-#line 182 "streamlang.y"
+#line 472 "streamlang.y"
       { (yyval.node) = mk(NK_WHILE, yylineno, NULL, 0, rev(cons((yyvsp[0].node), cons((yyvsp[-2].node), NULL)))); }
-#line 1448 "streamlang.tab.c"
+#line 1738 "streamlang.tab.c"
     break;
 
   case 25: /* block: '{' '}'  */
-#line 187 "streamlang.y"
+#line 477 "streamlang.y"
       { (yyval.node) = mk(NK_BLOCK, yylineno, NULL, 0, NULL); }
-#line 1454 "streamlang.tab.c"
+#line 1744 "streamlang.tab.c"
     break;
 
   case 26: /* block: '{' stmtlist '}'  */
-#line 189 "streamlang.y"
+#line 479 "streamlang.y"
       { (yyval.node) = mk(NK_BLOCK, yylineno, NULL, 0, (yyvsp[-1].list)); }
-#line 1460 "streamlang.tab.c"
+#line 1750 "streamlang.tab.c"
     break;
 
   case 27: /* printStmt: T_PRINT '(' expr ')' ';'  */
-#line 194 "streamlang.y"
+#line 484 "streamlang.y"
       { (yyval.node) = mk(NK_PRINT, yylineno, NULL, 0, cons((yyvsp[-2].node),NULL)); }
-#line 1466 "streamlang.tab.c"
+#line 1756 "streamlang.tab.c"
     break;
 
   case 28: /* printStmt: T_PRINT '(' T_STRING_LIT ')' ';'  */
-#line 196 "streamlang.y"
+#line 486 "streamlang.y"
       { (yyval.node) = mk(NK_PRINT, yylineno, (yyvsp[-2].sval), 0, NULL); free((yyvsp[-2].sval)); }
-#line 1472 "streamlang.tab.c"
+#line 1762 "streamlang.tab.c"
     break;
 
   case 29: /* streamStmt: openStmt  */
-#line 201 "streamlang.y"
+#line 491 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1478 "streamlang.tab.c"
+#line 1768 "streamlang.tab.c"
     break;
 
   case 30: /* streamStmt: playStmt  */
-#line 202 "streamlang.y"
+#line 492 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1484 "streamlang.tab.c"
+#line 1774 "streamlang.tab.c"
     break;
 
   case 31: /* streamStmt: pauseStmt  */
-#line 203 "streamlang.y"
+#line 493 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1490 "streamlang.tab.c"
+#line 1780 "streamlang.tab.c"
     break;
 
   case 32: /* streamStmt: stopStmt  */
-#line 204 "streamlang.y"
+#line 494 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1496 "streamlang.tab.c"
+#line 1786 "streamlang.tab.c"
     break;
 
   case 33: /* streamStmt: seekStmt  */
-#line 205 "streamlang.y"
+#line 495 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1502 "streamlang.tab.c"
+#line 1792 "streamlang.tab.c"
     break;
 
   case 34: /* streamStmt: forwardStmt  */
-#line 206 "streamlang.y"
+#line 496 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1508 "streamlang.tab.c"
+#line 1798 "streamlang.tab.c"
     break;
 
   case 35: /* streamStmt: rewindStmt  */
-#line 207 "streamlang.y"
+#line 497 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1514 "streamlang.tab.c"
+#line 1804 "streamlang.tab.c"
     break;
 
   case 36: /* streamStmt: waitStmt  */
-#line 208 "streamlang.y"
+#line 498 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1520 "streamlang.tab.c"
+#line 1810 "streamlang.tab.c"
     break;
 
   case 37: /* openStmt: T_OPEN '(' T_STRING_LIT ')' ';'  */
-#line 213 "streamlang.y"
+#line 503 "streamlang.y"
       { (yyval.node) = mk(NK_OPEN, yylineno, (yyvsp[-2].sval), 0, NULL); free((yyvsp[-2].sval)); }
-#line 1526 "streamlang.tab.c"
+#line 1816 "streamlang.tab.c"
     break;
 
   case 38: /* openStmt: T_OPEN '(' expr ')' ';'  */
-#line 215 "streamlang.y"
+#line 505 "streamlang.y"
       { (yyval.node) = mk(NK_OPEN, yylineno, NULL, 0, cons((yyvsp[-2].node),NULL)); }
-#line 1532 "streamlang.tab.c"
+#line 1822 "streamlang.tab.c"
     break;
 
   case 39: /* optExpr: %empty  */
-#line 219 "streamlang.y"
+#line 509 "streamlang.y"
                                 { (yyval.node) = NULL; }
-#line 1538 "streamlang.tab.c"
+#line 1828 "streamlang.tab.c"
     break;
 
   case 40: /* optExpr: expr  */
-#line 220 "streamlang.y"
+#line 510 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1544 "streamlang.tab.c"
+#line 1834 "streamlang.tab.c"
     break;
 
   case 41: /* playStmt: T_PLAY '(' optExpr ')' ';'  */
-#line 225 "streamlang.y"
+#line 515 "streamlang.y"
       { (yyval.node) = mk(NK_PLAY, yylineno, NULL, 0, (yyvsp[-2].node)?cons((yyvsp[-2].node),NULL):NULL); }
-#line 1550 "streamlang.tab.c"
+#line 1840 "streamlang.tab.c"
     break;
 
   case 42: /* pauseStmt: T_PAUSE '(' ')' ';'  */
-#line 230 "streamlang.y"
+#line 520 "streamlang.y"
       { (yyval.node) = mk(NK_PAUSE, yylineno, NULL, 0, NULL); }
-#line 1556 "streamlang.tab.c"
+#line 1846 "streamlang.tab.c"
     break;
 
   case 43: /* stopStmt: T_STOP '(' ')' ';'  */
-#line 235 "streamlang.y"
+#line 525 "streamlang.y"
       { (yyval.node) = mk(NK_STOP, yylineno, NULL, 0, NULL); }
-#line 1562 "streamlang.tab.c"
+#line 1852 "streamlang.tab.c"
     break;
 
   case 44: /* seekStmt: T_SEEK '(' expr ')' ';'  */
-#line 240 "streamlang.y"
+#line 530 "streamlang.y"
       { (yyval.node) = mk(NK_SEEK, yylineno, NULL, 0, cons((yyvsp[-2].node),NULL)); }
-#line 1568 "streamlang.tab.c"
+#line 1858 "streamlang.tab.c"
     break;
 
   case 45: /* forwardStmt: T_FORWARD '(' expr ')' ';'  */
-#line 245 "streamlang.y"
+#line 535 "streamlang.y"
       { (yyval.node) = mk(NK_FORWARD, yylineno, NULL, 0, cons((yyvsp[-2].node),NULL)); }
-#line 1574 "streamlang.tab.c"
+#line 1864 "streamlang.tab.c"
     break;
 
   case 46: /* rewindStmt: T_REWIND '(' expr ')' ';'  */
-#line 250 "streamlang.y"
+#line 540 "streamlang.y"
       { (yyval.node) = mk(NK_REWIND, yylineno, NULL, 0, cons((yyvsp[-2].node),NULL)); }
-#line 1580 "streamlang.tab.c"
+#line 1870 "streamlang.tab.c"
     break;
 
   case 47: /* waitStmt: T_WAIT '(' expr ')' ';'  */
-#line 255 "streamlang.y"
+#line 545 "streamlang.y"
       { (yyval.node) = mk(NK_WAIT, yylineno, NULL, 0, cons((yyvsp[-2].node),NULL)); }
-#line 1586 "streamlang.tab.c"
+#line 1876 "streamlang.tab.c"
     break;
 
   case 48: /* expr: equality  */
-#line 260 "streamlang.y"
+#line 550 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1592 "streamlang.tab.c"
+#line 1882 "streamlang.tab.c"
     break;
 
   case 49: /* equality: relational  */
-#line 264 "streamlang.y"
+#line 554 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1598 "streamlang.tab.c"
+#line 1888 "streamlang.tab.c"
     break;
 
   case 50: /* equality: equality T_EQ relational  */
-#line 265 "streamlang.y"
+#line 555 "streamlang.y"
                                 { (yyval.node) = mk(NK_EQ, yylineno, NULL, 0, rev(cons((yyvsp[0].node), cons((yyvsp[-2].node),NULL)))); }
-#line 1604 "streamlang.tab.c"
+#line 1894 "streamlang.tab.c"
     break;
 
   case 51: /* equality: equality T_NE relational  */
-#line 266 "streamlang.y"
+#line 556 "streamlang.y"
                                 { (yyval.node) = mk(NK_NE, yylineno, NULL, 0, rev(cons((yyvsp[0].node), cons((yyvsp[-2].node),NULL)))); }
-#line 1610 "streamlang.tab.c"
+#line 1900 "streamlang.tab.c"
     break;
 
   case 52: /* relational: additive  */
-#line 270 "streamlang.y"
+#line 560 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1616 "streamlang.tab.c"
+#line 1906 "streamlang.tab.c"
     break;
 
   case 53: /* relational: relational '<' additive  */
-#line 271 "streamlang.y"
+#line 561 "streamlang.y"
                                 { (yyval.node) = mk(NK_LT, yylineno, NULL, 0, rev(cons((yyvsp[0].node), cons((yyvsp[-2].node),NULL)))); }
-#line 1622 "streamlang.tab.c"
+#line 1912 "streamlang.tab.c"
     break;
 
   case 54: /* relational: relational '>' additive  */
-#line 272 "streamlang.y"
+#line 562 "streamlang.y"
                                 { (yyval.node) = mk(NK_GT, yylineno, NULL, 0, rev(cons((yyvsp[0].node), cons((yyvsp[-2].node),NULL)))); }
-#line 1628 "streamlang.tab.c"
+#line 1918 "streamlang.tab.c"
     break;
 
   case 55: /* relational: relational T_LE additive  */
-#line 273 "streamlang.y"
+#line 563 "streamlang.y"
                                 { (yyval.node) = mk(NK_LE, yylineno, NULL, 0, rev(cons((yyvsp[0].node), cons((yyvsp[-2].node),NULL)))); }
-#line 1634 "streamlang.tab.c"
+#line 1924 "streamlang.tab.c"
     break;
 
   case 56: /* relational: relational T_GE additive  */
-#line 274 "streamlang.y"
+#line 564 "streamlang.y"
                                 { (yyval.node) = mk(NK_GE, yylineno, NULL, 0, rev(cons((yyvsp[0].node), cons((yyvsp[-2].node),NULL)))); }
-#line 1640 "streamlang.tab.c"
+#line 1930 "streamlang.tab.c"
     break;
 
   case 57: /* additive: term  */
-#line 278 "streamlang.y"
+#line 568 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1646 "streamlang.tab.c"
+#line 1936 "streamlang.tab.c"
     break;
 
   case 58: /* additive: additive '+' term  */
-#line 279 "streamlang.y"
+#line 569 "streamlang.y"
                                 { (yyval.node) = mk(NK_ADD, yylineno, NULL, 0, rev(cons((yyvsp[0].node), cons((yyvsp[-2].node),NULL)))); }
-#line 1652 "streamlang.tab.c"
+#line 1942 "streamlang.tab.c"
     break;
 
   case 59: /* additive: additive '-' term  */
-#line 280 "streamlang.y"
+#line 570 "streamlang.y"
                                 { (yyval.node) = mk(NK_SUB, yylineno, NULL, 0, rev(cons((yyvsp[0].node), cons((yyvsp[-2].node),NULL)))); }
-#line 1658 "streamlang.tab.c"
+#line 1948 "streamlang.tab.c"
     break;
 
   case 60: /* term: factor  */
-#line 284 "streamlang.y"
+#line 574 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1664 "streamlang.tab.c"
+#line 1954 "streamlang.tab.c"
     break;
 
   case 61: /* term: term '*' factor  */
-#line 285 "streamlang.y"
+#line 575 "streamlang.y"
                                 { (yyval.node) = mk(NK_MUL, yylineno, NULL, 0, rev(cons((yyvsp[0].node), cons((yyvsp[-2].node),NULL)))); }
-#line 1670 "streamlang.tab.c"
+#line 1960 "streamlang.tab.c"
     break;
 
   case 62: /* term: term '/' factor  */
-#line 286 "streamlang.y"
+#line 576 "streamlang.y"
                                 { (yyval.node) = mk(NK_DIV, yylineno, NULL, 0, rev(cons((yyvsp[0].node), cons((yyvsp[-2].node),NULL)))); }
-#line 1676 "streamlang.tab.c"
+#line 1966 "streamlang.tab.c"
     break;
 
   case 63: /* factor: primary  */
-#line 290 "streamlang.y"
+#line 580 "streamlang.y"
                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1682 "streamlang.tab.c"
+#line 1972 "streamlang.tab.c"
     break;
 
   case 64: /* factor: '-' factor  */
-#line 291 "streamlang.y"
+#line 581 "streamlang.y"
                                 { (yyval.node) = mk(NK_NEG, yylineno, NULL, 0, cons((yyvsp[0].node),NULL)); }
-#line 1688 "streamlang.tab.c"
+#line 1978 "streamlang.tab.c"
     break;
 
   case 65: /* primary: T_NUMBER  */
-#line 295 "streamlang.y"
+#line 585 "streamlang.y"
                                 { (yyval.node) = mk(NK_NUMBER, yylineno, NULL, (yyvsp[0].ival), NULL); }
-#line 1694 "streamlang.tab.c"
+#line 1984 "streamlang.tab.c"
     break;
 
   case 66: /* primary: T_IDENT  */
-#line 296 "streamlang.y"
+#line 586 "streamlang.y"
                                 { (yyval.node) = mk(NK_IDENT,  yylineno, (yyvsp[0].sval), 0, NULL); free((yyvsp[0].sval)); }
-#line 1700 "streamlang.tab.c"
+#line 1990 "streamlang.tab.c"
     break;
 
   case 67: /* primary: '(' expr ')'  */
-#line 297 "streamlang.y"
+#line 587 "streamlang.y"
                                 { (yyval.node) = (yyvsp[-1].node); }
-#line 1706 "streamlang.tab.c"
+#line 1996 "streamlang.tab.c"
     break;
 
   case 68: /* primary: T_POSITION '(' ')'  */
-#line 298 "streamlang.y"
+#line 588 "streamlang.y"
                                 { (yyval.node) = mk(NK_POS, yylineno, NULL, 0, NULL); }
-#line 1712 "streamlang.tab.c"
+#line 2002 "streamlang.tab.c"
     break;
 
   case 69: /* primary: T_DURATION '(' ')'  */
-#line 299 "streamlang.y"
+#line 589 "streamlang.y"
                                 { (yyval.node) = mk(NK_DUR, yylineno, NULL, 0, NULL); }
-#line 1718 "streamlang.tab.c"
+#line 2008 "streamlang.tab.c"
     break;
 
   case 70: /* primary: T_ENDED '(' ')'  */
-#line 300 "streamlang.y"
+#line 590 "streamlang.y"
                                 { (yyval.node) = mk(NK_ENDED, yylineno, NULL, 0, NULL); }
-#line 1724 "streamlang.tab.c"
+#line 2014 "streamlang.tab.c"
     break;
 
   case 71: /* primary: T_IS_PLAYING '(' ')'  */
-#line 301 "streamlang.y"
+#line 591 "streamlang.y"
                                 { (yyval.node) = mk(NK_ISPLAYING, yylineno, NULL, 0, NULL); }
-#line 1730 "streamlang.tab.c"
+#line 2020 "streamlang.tab.c"
     break;
 
 
-#line 1734 "streamlang.tab.c"
+#line 2024 "streamlang.tab.c"
 
       default: break;
     }
@@ -1923,15 +2213,34 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 304 "streamlang.y"
+#line 594 "streamlang.y"
 
 
-int main(void){
+int main(int argc, char** argv){
   int ret = yyparse();
   if(ret==0){
     puts("[OK] parsing concluído.");
-    /* debug: */
-    print_node(g_root, 0);
+
+    /* Generate assembly code */
+    const char* outfile = "output.asm";
+    if (argc > 1) {
+      outfile = argv[1];
+    }
+
+    out = fopen(outfile, "w");
+    if (!out) {
+      fprintf(stderr, "[ERROR] Cannot open output file: %s\n", outfile);
+      return 1;
+    }
+
+    fprintf(out, "; StreamLang Assembly - Generated Code\n\n");
+    gen_stmt(g_root);
+    fclose(out);
+
+    printf("[OK] Assembly code generated: %s\n", outfile);
+
+    /* Optional: print AST for debugging */
+    /* print_node(g_root, 0); */
   }
   free_ast(g_root);
   return ret;

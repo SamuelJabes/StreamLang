@@ -71,6 +71,296 @@ static void free_ast(Node* n){
   free(n);
 }
 
+/* --- Code Generation --- */
+static FILE* out = NULL;
+static int label_counter = 0;
+static int var_counter = 0;
+
+typedef struct VarEntry {
+  char* name;
+  int addr;
+  struct VarEntry* next;
+} VarEntry;
+
+static VarEntry* symtab = NULL;
+
+static int get_var_addr(const char* name) {
+  for (VarEntry* e = symtab; e; e = e->next) {
+    if (strcmp(e->name, name) == 0) return e->addr;
+  }
+  /* create new variable */
+  VarEntry* e = (VarEntry*)malloc(sizeof(VarEntry));
+  e->name = strdup(name);
+  e->addr = var_counter++;
+  e->next = symtab;
+  symtab = e;
+  return e->addr;
+}
+
+static int new_label() { return label_counter++; }
+
+static void gen_expr(Node* n);
+static void gen_stmt(Node* n);
+
+static void gen_expr(Node* n) {
+  if (!n) return;
+  NodeList* kids = n->kids;
+
+  switch(n->kind) {
+    case NK_NUMBER:
+      fprintf(out, "PUSH %d\n", n->ival);
+      break;
+
+    case NK_IDENT: {
+      int addr = get_var_addr(n->sval);
+      fprintf(out, "LOAD %d\n", addr);
+      break;
+    }
+
+    case NK_STRING:
+      /* strings are handled specially in print/open */
+      break;
+
+    case NK_ADD:
+      gen_expr(kids->node);       /* left */
+      gen_expr(kids->next->node); /* right */
+      fprintf(out, "ADD\n");
+      break;
+
+    case NK_SUB:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "SUB\n");
+      break;
+
+    case NK_MUL:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "MUL\n");
+      break;
+
+    case NK_DIV:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "DIV\n");
+      break;
+
+    case NK_NEG:
+      gen_expr(kids->node);
+      fprintf(out, "NEG\n");
+      break;
+
+    case NK_EQ:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "EQ\n");
+      break;
+
+    case NK_NE:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "NE\n");
+      break;
+
+    case NK_LT:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "LT\n");
+      break;
+
+    case NK_LE:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "LE\n");
+      break;
+
+    case NK_GT:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "GT\n");
+      break;
+
+    case NK_GE:
+      gen_expr(kids->node);
+      gen_expr(kids->next->node);
+      fprintf(out, "GE\n");
+      break;
+
+    case NK_POS:
+      fprintf(out, "GET_POS\n");
+      break;
+
+    case NK_DUR:
+      fprintf(out, "GET_DUR\n");
+      break;
+
+    case NK_ENDED:
+      fprintf(out, "GET_ENDED\n");
+      break;
+
+    case NK_ISPLAYING:
+      fprintf(out, "GET_PLAYING\n");
+      break;
+
+    default:
+      break;
+  }
+}
+
+static void gen_stmt(Node* n) {
+  if (!n) return;
+  NodeList* kids = n->kids;
+
+  switch(n->kind) {
+    case NK_PROGRAM:
+      for (NodeList* k = kids; k; k = k->next) {
+        gen_stmt(k->node);
+      }
+      fprintf(out, "HALT\n");
+      break;
+
+    case NK_DECL_INT:
+      /* optionally initialize */
+      if (kids) {
+        gen_expr(kids->node);  /* initial value */
+        fprintf(out, "STORE %d\n", get_var_addr(n->sval));
+      } else {
+        fprintf(out, "PUSH 0\n");
+        fprintf(out, "STORE %d\n", get_var_addr(n->sval));
+      }
+      break;
+
+    case NK_DECL_STRING:
+      /* strings stored as-is; we'll handle them separately if needed */
+      break;
+
+    case NK_ASSIGN:
+      /* kids: [ident, expr/string] */
+      if (kids && kids->next) {
+        Node* lhs = kids->node;
+        Node* rhs = kids->next->node;
+        if (rhs->kind == NK_STRING) {
+          /* ignore for now - strings are tricky in simple VM */
+        } else {
+          gen_expr(rhs);
+          fprintf(out, "STORE %d\n", get_var_addr(lhs->sval));
+        }
+      }
+      break;
+
+    case NK_IF: {
+      int else_label = new_label();
+      int end_label = new_label();
+
+      /* condition */
+      gen_expr(kids->node);
+
+      if (kids->next && kids->next->next) {
+        /* has else branch */
+        fprintf(out, "JUMPZ L%d\n", else_label);
+        gen_stmt(kids->next->node);  /* then */
+        fprintf(out, "GOTO L%d\n", end_label);
+        fprintf(out, "L%d:\n", else_label);
+        gen_stmt(kids->next->next->node);  /* else */
+        fprintf(out, "L%d:\n", end_label);
+      } else {
+        /* no else */
+        fprintf(out, "JUMPZ L%d\n", end_label);
+        gen_stmt(kids->next->node);  /* then */
+        fprintf(out, "L%d:\n", end_label);
+      }
+      break;
+    }
+
+    case NK_WHILE: {
+      int loop_label = new_label();
+      int end_label = new_label();
+
+      fprintf(out, "L%d:\n", loop_label);
+      gen_expr(kids->node);  /* condition */
+      fprintf(out, "JUMPZ L%d\n", end_label);
+      gen_stmt(kids->next->node);  /* body */
+      fprintf(out, "GOTO L%d\n", loop_label);
+      fprintf(out, "L%d:\n", end_label);
+      break;
+    }
+
+    case NK_BLOCK:
+      for (NodeList* k = kids; k; k = k->next) {
+        gen_stmt(k->node);
+      }
+      break;
+
+    case NK_PRINT:
+      if (n->sval) {
+        /* print string literal */
+        fprintf(out, "PRINTS \"%s\"\n", n->sval);
+      } else if (kids) {
+        /* print expression */
+        gen_expr(kids->node);
+        fprintf(out, "PRINT\n");
+      }
+      break;
+
+    case NK_OPEN:
+      if (n->sval) {
+        fprintf(out, "OPEN \"%s\"\n", n->sval);
+      } else if (kids) {
+        /* numeric ID - ignore for now */
+      }
+      break;
+
+    case NK_PLAY:
+      if (kids) {
+        gen_expr(kids->node);
+        fprintf(out, "POP R0\n");
+        fprintf(out, "PLAY R0\n");
+      } else {
+        fprintf(out, "PLAY 1\n");
+      }
+      break;
+
+    case NK_PAUSE:
+      fprintf(out, "PAUSE\n");
+      break;
+
+    case NK_STOP:
+      fprintf(out, "STOP\n");
+      break;
+
+    case NK_SEEK:
+      gen_expr(kids->node);
+      fprintf(out, "POP R0\n");
+      fprintf(out, "SEEK R0\n");
+      break;
+
+    case NK_FORWARD:
+      gen_expr(kids->node);
+      fprintf(out, "POP R0\n");
+      fprintf(out, "FORWARD R0\n");
+      break;
+
+    case NK_REWIND:
+      gen_expr(kids->node);
+      fprintf(out, "POP R0\n");
+      fprintf(out, "REWIND R0\n");
+      break;
+
+    case NK_WAIT:
+      gen_expr(kids->node);
+      fprintf(out, "POP R0\n");
+      fprintf(out, "WAIT R0\n");
+      break;
+
+    case NK_LIST:
+      /* empty statement */
+      break;
+
+    default:
+      break;
+  }
+}
+
 /* lexer hooks */
 int yylex(void);
 extern int yylineno;
@@ -122,7 +412,7 @@ Node* g_root = NULL;
 
 program
     : %empty                    { $$ = mk(NK_PROGRAM, yylineno, NULL, 0, NULL); g_root = $$; }
-    | stmtlist                  { $$ = mk(NK_PROGRAM, yylineno, NULL, 0, $1);   g_root = $$; }
+    | stmtlist                  { $$ = mk(NK_PROGRAM, yylineno, NULL, 0, rev($1));   g_root = $$; }
     ;
 
 stmtlist
@@ -303,12 +593,31 @@ primary
 
 %%
 
-int main(void){
+int main(int argc, char** argv){
   int ret = yyparse();
   if(ret==0){
     puts("[OK] parsing concluído.");
-    /* debug: */
-    print_node(g_root, 0);
+
+    /* Generate assembly code */
+    const char* outfile = "output.asm";
+    if (argc > 1) {
+      outfile = argv[1];
+    }
+
+    out = fopen(outfile, "w");
+    if (!out) {
+      fprintf(stderr, "[ERROR] Cannot open output file: %s\n", outfile);
+      return 1;
+    }
+
+    fprintf(out, "; StreamLang Assembly - Generated Code\n\n");
+    gen_stmt(g_root);
+    fclose(out);
+
+    printf("[OK] Assembly code generated: %s\n", outfile);
+
+    /* Optional: print AST for debugging */
+    /* print_node(g_root, 0); */
   }
   free_ast(g_root);
   return ret;

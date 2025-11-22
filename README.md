@@ -1,27 +1,36 @@
 # StreamLang
-Linguagem para Streaming
+Linguagem de Programação para Controle de Streaming de Vídeos
+
+## Visão Geral
+
+StreamLang é uma linguagem de programação de alto nível projetada especificamente para controlar reprodução de mídia/vídeos. Possui sintaxe familiar (baseada em C/Java) e comandos específicos para streaming.
+
+**Características:**
+- Compilador completo (Flex + Bison)
+- Máquina Virtual própria (StreamVM) - Turing-completa
+- Comandos nativos de streaming (open, play, pause, seek, etc.)
+- Sensores de estado (position, duration, ended, is_playing)
 
 ## Requisitos
 
 ### Dependências Necessárias
 
-- Flex (analisador léxico)
-- Bison (analisador sintático)
-- GCC (compilador C)
-- Make
+- **Flex** (analisador léxico)
+- **Bison** (analisador sintático)
+- **GCC** (compilador C)
+- **Make** (automação de build)
+- **Python 3** (para executar a VM)
 
 ### Instalação no Linux (Ubuntu/Debian)
 
 ```bash
 sudo apt-get update
-sudo apt-get install flex bison gcc make
+sudo apt-get install flex bison gcc make python3
 ```
 
-## Guia de Uso
+## Guia de Uso Completo
 
-### Compilação
-
-Para compilar o compilador StreamLang:
+### 1. Compilar o Compilador StreamLang
 
 ```bash
 make
@@ -33,15 +42,62 @@ Para limpar os arquivos gerados:
 make clean
 ```
 
-### Executando o Compilador
+### 2. Escrever um Programa StreamLang
 
-Para processar um arquivo StreamLang (`.sl`):
+Crie um arquivo `.sl`:
 
-```bash
-./streamlang < arquivo.sl
+```streamlang
+// meu_programa.sl
+int tempo = 10;
+
+open("Meu Video");
+play();
+wait(tempo);
+
+if (position() >= 10) {
+    print("Já passou 10 segundos!");
+}
+
+pause();
 ```
 
-O compilador realiza a análise léxica e sintática, gerando uma Abstract Syntax Tree (AST) do programa.
+### 3. Compilar para Assembly
+
+```bash
+./streamlang output.asm < meu_programa.sl
+```
+
+Isso gera um arquivo `output.asm` com o código assembly da StreamVM.
+
+### 4. Executar na StreamVM
+
+```bash
+python3 streamvm.py output.asm
+```
+
+### Pipeline Completo (Exemplo)
+
+```bash
+# 1. Compilar o compilador
+make
+
+# 2. Compilar programa StreamLang para assembly
+./streamlang output.asm < examples/simple_demo.sl
+
+# 3. Executar na VM
+python3 streamvm.py output.asm
+```
+
+### Script de Compilação e Execução Rápida
+
+```bash
+# Criar um script run.sh
+echo './streamlang output.asm < $1 && python3 streamvm.py output.asm' > run.sh
+chmod +x run.sh
+
+# Usar
+./run.sh examples/simple_demo.sl
+```
 
 ### Exemplo de Programa
 
