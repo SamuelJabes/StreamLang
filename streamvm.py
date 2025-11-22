@@ -1,58 +1,58 @@
 #!/usr/bin/env python3
 """
-StreamVM - A Turing-complete Virtual Machine for video streaming control.
+StreamVM - Máquina Virtual Turing-completa para controle de streaming de vídeos.
 
-Architecture:
-  - 2+ Registers: POS (position), SPEED (playback speed), R0, R1 (general purpose)
-  - Memory: Stack for expressions and local variables
-  - Readonly Sensors: DURATION, IS_PLAYING, ENDED
+Arquitetura:
+  - 2+ Registradores: POS (posição), SPEED (velocidade), R0, R1 (propósito geral)
+  - Memória: Pilha para expressões e variáveis locais
+  - Sensores Readonly: DURATION, IS_PLAYING, ENDED
 
-Instruction Set (Turing-complete via DECJZ + GOTO):
-  Stack Operations:
-    PUSH n          ; push literal value n onto stack
-    POP R           ; pop top of stack into register R
-    LOAD addr       ; push memory[addr] onto stack
-    STORE addr      ; pop stack into memory[addr]
+Conjunto de Instruções (Turing-completa via DECJZ + GOTO):
+  Operações de Pilha:
+    PUSH n          ; empilha valor literal n
+    POP R           ; desempilha topo para registrador R
+    LOAD addr       ; empilha memory[addr]
+    STORE addr      ; desempilha para memory[addr]
 
-  Arithmetic:
-    ADD             ; pop b, pop a, push a+b
-    SUB             ; pop b, pop a, push a-b
-    MUL             ; pop b, pop a, push a*b
-    DIV             ; pop b, pop a, push a/b
-    NEG             ; pop a, push -a
+  Aritmética:
+    ADD             ; desempilha b, a, empilha a+b
+    SUB             ; desempilha b, a, empilha a-b
+    MUL             ; desempilha b, a, empilha a*b
+    DIV             ; desempilha b, a, empilha a/b
+    NEG             ; desempilha a, empilha -a
 
-  Comparisons (push 1 if true, 0 if false):
+  Comparações (empilha 1 se verdadeiro, 0 se falso):
     EQ, NE, LT, LE, GT, GE
 
-  Control Flow (Turing-complete):
-    LABEL name      ; define a jump target
-    GOTO label      ; unconditional jump
-    JUMPZ label     ; jump if top of stack == 0
-    JUMPI label     ; jump if top of stack != 0
-    DECJZ R label   ; if R == 0: jump to label, else R := R - 1
+  Controle de Fluxo (Turing-completo):
+    LABEL nome      ; define alvo de salto
+    GOTO label      ; salto incondicional
+    JUMPZ label     ; salta se topo da pilha == 0
+    JUMPI label     ; salta se topo da pilha != 0
+    DECJZ R label   ; se R == 0: salta para label, senão R := R - 1
 
-  Streaming Commands:
-    OPEN "title"    ; open video by title
-    PLAY speed      ; play at speed (default 1)
-    PAUSE           ; pause playback
-    STOP            ; stop playback
-    SEEK pos        ; seek to absolute position
-    FORWARD delta   ; skip forward delta seconds
-    REWIND delta    ; skip backward delta seconds
-    WAIT time       ; wait for time seconds (simulated)
+  Comandos de Streaming:
+    OPEN "titulo"   ; abre vídeo por título
+    PLAY speed      ; reproduz na velocidade (padrão 1)
+    PAUSE           ; pausa reprodução
+    STOP            ; para reprodução
+    SEEK pos        ; busca posição absoluta
+    FORWARD delta   ; avança delta segundos
+    REWIND delta    ; retrocede delta segundos
+    WAIT time       ; aguarda time segundos (simulado)
 
-  Sensors (push value onto stack):
-    GET_POS         ; push current position
-    GET_DUR         ; push video duration
-    GET_ENDED       ; push 1 if ended, 0 otherwise
-    GET_PLAYING     ; push 1 if playing, 0 otherwise
+  Sensores (empilham valor na pilha):
+    GET_POS         ; empilha posição atual
+    GET_DUR         ; empilha duração do vídeo
+    GET_ENDED       ; empilha 1 se terminou, 0 caso contrário
+    GET_PLAYING     ; empilha 1 se tocando, 0 caso contrário
 
   I/O:
-    PRINT           ; print top of stack
-    PRINTS "text"   ; print string literal
+    PRINT           ; imprime topo da pilha
+    PRINTS "texto"  ; imprime literal string
 
-  Control:
-    HALT            ; stop execution
+  Controle:
+    HALT            ; para execução
 """
 
 from dataclasses import dataclass
@@ -66,39 +66,39 @@ class Instr:
 
 class StreamVM:
     def __init__(self):
-        # Registers (writable)
+        # Registradores (escrita permitida)
         self.registers: Dict[str, int] = {
-            "POS": 0,      # Current position in seconds
-            "SPEED": 1,    # Playback speed (1 = normal)
-            "R0": 0,       # General purpose register 0
-            "R1": 0,       # General purpose register 1
+            "POS": 0,      # Posição atual em segundos
+            "SPEED": 1,    # Velocidade de reprodução (1 = normal)
+            "R0": 0,       # Registrador de propósito geral 0
+            "R1": 0,       # Registrador de propósito geral 1
         }
 
-        # Readonly sensors
+        # Sensores readonly
         self.sensors: Dict[str, int] = {
-            "DURATION": 0,    # Video duration in seconds
-            "IS_PLAYING": 0,  # 1 if playing, 0 if paused/stopped
-            "ENDED": 0,       # 1 if video ended, 0 otherwise
+            "DURATION": 0,    # Duração do vídeo em segundos
+            "IS_PLAYING": 0,  # 1 se tocando, 0 se pausado/parado
+            "ENDED": 0,       # 1 se vídeo terminou, 0 caso contrário
         }
 
-        # Memory and stack
-        self.memory: List[int] = [0] * 256  # 256 cells of memory
+        # Memória e pilha
+        self.memory: List[int] = [0] * 256  # 256 células de memória
         self.stack: List[int] = []
 
-        # Video state
+        # Estado do vídeo
         self.video_title: str = ""
         self.video_loaded: bool = False
 
-        # Program execution
+        # Execução do programa
         self.program: List[Instr] = []
         self.labels: Dict[str, int] = {}
         self.pc: int = 0
         self.halted: bool = False
         self.steps: int = 0
 
-    # --- Assembler / Loader ---
+    # --- Montador / Carregador ---
     def load_program(self, source: str):
-        """Load and parse assembly program"""
+        """Carrega e analisa programa assembly"""
         self.program.clear()
         self.labels.clear()
         self.stack.clear()
@@ -108,7 +108,7 @@ class StreamVM:
 
         lines = source.splitlines()
 
-        # First pass: collect labels
+        # Primeira passagem: coletar labels
         idx = 0
         for raw in lines:
             line = raw.split(';', 1)[0].split('#', 1)[0].strip()
@@ -117,29 +117,29 @@ class StreamVM:
             if line.endswith(':'):
                 label = line[:-1].strip()
                 if not label:
-                    raise ValueError("Empty label definition.")
+                    raise ValueError("Definição de label vazia.")
                 if label in self.labels:
-                    raise ValueError(f"Duplicate label: {label}")
+                    raise ValueError(f"Label duplicado: {label}")
                 self.labels[label] = idx
             else:
                 idx += 1
 
-        # Second pass: parse instructions
+        # Segunda passagem: analisar instruções
         for raw in lines:
             line = raw.split(';', 1)[0].split('#', 1)[0].strip()
             if not line or line.endswith(':'):
                 continue
 
-            # Handle string literals
+            # Tratar literais string
             if '"' in line:
-                # Split at first space, then handle quoted string
+                # Dividir no primeiro espaço, depois tratar string entre aspas
                 parts = line.split(None, 1)
                 if len(parts) == 2:
                     op = parts[0].upper()
-                    # Extract string literal
+                    # Extrair literal string
                     rest = parts[1].strip()
                     if rest.startswith('"') and rest.endswith('"'):
-                        args = (rest[1:-1],)  # Remove quotes
+                        args = (rest[1:-1],)  # Remover aspas
                     else:
                         args = tuple(rest.replace(',', ' ').split())
                 else:
@@ -152,9 +152,9 @@ class StreamVM:
 
             self.program.append(Instr(op, args))
 
-    # --- Execution ---
+    # --- Execução ---
     def step(self):
-        """Execute one instruction"""
+        """Executa uma instrução"""
         if self.halted:
             return
         if not (0 <= self.pc < len(self.program)):
@@ -167,9 +167,9 @@ class StreamVM:
         op = instr.op
         args = instr.args
 
-        # Stack operations
+        # Operações de pilha
         if op == "PUSH":
-            # Support both literal and register
+            # Suporta literal e registrador
             arg = args[0]
             if arg.upper() in self.registers:
                 val = self.registers[arg.upper()]
@@ -180,7 +180,7 @@ class StreamVM:
 
         elif op == "POP":
             if not self.stack:
-                raise RuntimeError("Cannot POP from empty stack")
+                raise RuntimeError("Não é possível fazer POP de pilha vazia")
             reg = args[0].upper()
             self.registers[reg] = self.stack.pop()
             self.pc += 1
@@ -192,12 +192,12 @@ class StreamVM:
 
         elif op == "STORE":
             if not self.stack:
-                raise RuntimeError("Cannot STORE from empty stack")
+                raise RuntimeError("Não é possível fazer STORE de pilha vazia")
             addr = int(args[0])
             self.memory[addr] = self.stack.pop()
             self.pc += 1
 
-        # Arithmetic
+        # Aritmética
         elif op == "ADD":
             b = self.stack.pop()
             a = self.stack.pop()
@@ -220,8 +220,8 @@ class StreamVM:
             b = self.stack.pop()
             a = self.stack.pop()
             if b == 0:
-                raise RuntimeError("Division by zero")
-            self.stack.append(a // b)  # Integer division
+                raise RuntimeError("Divisão por zero")
+            self.stack.append(a // b)  # Divisão inteira
             self.pc += 1
 
         elif op == "NEG":
@@ -229,7 +229,7 @@ class StreamVM:
             self.stack.append(-a)
             self.pc += 1
 
-        # Comparisons
+        # Comparações
         elif op == "EQ":
             b = self.stack.pop()
             a = self.stack.pop()
@@ -266,11 +266,11 @@ class StreamVM:
             self.stack.append(1 if a >= b else 0)
             self.pc += 1
 
-        # Control flow
+        # Controle de fluxo
         elif op == "GOTO":
             label = args[0]
             if label not in self.labels:
-                raise ValueError(f"Unknown label: {label}")
+                raise ValueError(f"Label desconhecido: {label}")
             self.pc = self.labels[label]
 
         elif op == "JUMPZ":
@@ -278,7 +278,7 @@ class StreamVM:
             val = self.stack.pop()
             if val == 0:
                 if label not in self.labels:
-                    raise ValueError(f"Unknown label: {label}")
+                    raise ValueError(f"Label desconhecido: {label}")
                 self.pc = self.labels[label]
             else:
                 self.pc += 1
@@ -288,7 +288,7 @@ class StreamVM:
             val = self.stack.pop()
             if val != 0:
                 if label not in self.labels:
-                    raise ValueError(f"Unknown label: {label}")
+                    raise ValueError(f"Label desconhecido: {label}")
                 self.pc = self.labels[label]
             else:
                 self.pc += 1
@@ -298,79 +298,79 @@ class StreamVM:
             label = args[1]
             if self.registers[reg] == 0:
                 if label not in self.labels:
-                    raise ValueError(f"Unknown label: {label}")
+                    raise ValueError(f"Label desconhecido: {label}")
                 self.pc = self.labels[label]
             else:
                 self.registers[reg] -= 1
                 self.pc += 1
 
-        # Streaming commands
+        # Comandos de streaming
         elif op == "OPEN":
             self.video_title = args[0]
             self.video_loaded = True
-            # Simulate video metadata
-            self.sensors["DURATION"] = 180  # 3 minutes default
+            # Simular metadados do vídeo
+            self.sensors["DURATION"] = 180  # 3 minutos padrão
             self.sensors["IS_PLAYING"] = 0
             self.sensors["ENDED"] = 0
             self.registers["POS"] = 0
-            print(f"[STREAM] Opened video: '{self.video_title}'")
+            print(f"[STREAM] Vídeo aberto: '{self.video_title}'")
             self.pc += 1
 
         elif op == "PLAY":
             if not self.video_loaded:
-                raise RuntimeError("No video loaded")
+                raise RuntimeError("Nenhum vídeo carregado")
             speed = int(args[0]) if args else 1
             self.registers["SPEED"] = speed
             self.sensors["IS_PLAYING"] = 1
-            print(f"[STREAM] Playing at speed {speed}x")
+            print(f"[STREAM] Reproduzindo a {speed}x")
             self.pc += 1
 
         elif op == "PAUSE":
             self.sensors["IS_PLAYING"] = 0
-            print(f"[STREAM] Paused at position {self.registers['POS']}s")
+            print(f"[STREAM] Pausado na posição {self.registers['POS']}s")
             self.pc += 1
 
         elif op == "STOP":
             self.sensors["IS_PLAYING"] = 0
             self.registers["POS"] = 0
-            print("[STREAM] Stopped")
+            print("[STREAM] Parado")
             self.pc += 1
 
         elif op == "SEEK":
-            # Support both literal and register
+            # Suporta literal e registrador
             arg = args[0]
             if arg.upper() in self.registers:
                 pos = self.registers[arg.upper()]
             else:
                 pos = int(arg)
             self.registers["POS"] = pos
-            print(f"[STREAM] Seeked to {pos}s")
+            print(f"[STREAM] Buscou para {pos}s")
             self.pc += 1
 
         elif op == "FORWARD":
-            # Support both literal and register
+            # Suporta literal e registrador
             arg = args[0]
             if arg.upper() in self.registers:
                 delta = self.registers[arg.upper()]
             else:
                 delta = int(arg)
             self.registers["POS"] += delta
-            print(f"[STREAM] Forwarded {delta}s to position {self.registers['POS']}s")
+            print(f"[STREAM] Avançou {delta}s para posição {self.registers['POS']}s")
             self.pc += 1
 
         elif op == "REWIND":
-            # Support both literal and register
+            # Suporta literal e registrador
             arg = args[0]
             if arg.upper() in self.registers:
                 delta = self.registers[arg.upper()]
             else:
                 delta = int(arg)
             self.registers["POS"] = max(0, self.registers["POS"] - delta)
-            print(f"[STREAM] Rewinded {delta}s to position {self.registers['POS']}s")
+            print(f"[STREAM] Retrocedeu {delta}s para posição {self.registers['POS']}s")
             self.pc += 1
 
         elif op == "WAIT":
-            # Support both literal and register
+            # Suporta literal e registrador
             arg = args[0]
             if arg.upper() in self.registers:
                 time = self.registers[arg.upper()]
@@ -378,15 +378,15 @@ class StreamVM:
                 time = int(arg)
             if self.sensors["IS_PLAYING"]:
                 self.registers["POS"] += time * self.registers["SPEED"]
-                # Check if ended
+                # Verificar se terminou
                 if self.registers["POS"] >= self.sensors["DURATION"]:
                     self.registers["POS"] = self.sensors["DURATION"]
                     self.sensors["ENDED"] = 1
                     self.sensors["IS_PLAYING"] = 0
-            print(f"[STREAM] Waited {time}s (now at {self.registers['POS']}s)")
+            print(f"[STREAM] Aguardou {time}s (agora em {self.registers['POS']}s)")
             self.pc += 1
 
-        # Sensors
+        # Sensores
         elif op == "GET_POS":
             self.stack.append(self.registers["POS"])
             self.pc += 1
@@ -406,7 +406,7 @@ class StreamVM:
         # I/O
         elif op == "PRINT":
             if not self.stack:
-                raise RuntimeError("Cannot PRINT from empty stack")
+                raise RuntimeError("Não é possível fazer PRINT de pilha vazia")
             val = self.stack.pop()
             print(val)
             self.pc += 1
@@ -416,24 +416,24 @@ class StreamVM:
             print(text)
             self.pc += 1
 
-        # Control
+        # Controle
         elif op == "HALT":
-            print("[VM] Execution halted")
+            print("[VM] Execução finalizada")
             self.halted = True
 
         else:
-            raise ValueError(f"Unknown opcode: {op}")
+            raise ValueError(f"Opcode desconhecido: {op}")
 
     def run(self, max_steps: Optional[int] = 10000):
-        """Run program until HALT or max_steps"""
+        """Executa programa até HALT ou max_steps"""
         while not self.halted:
             if self.steps >= max_steps:
-                raise RuntimeError("Step limit reached (possible infinite loop)")
+                raise RuntimeError("Limite de passos atingido (possível loop infinito)")
             self.step()
 
-    # --- Helpers ---
+    # --- Auxiliares ---
     def state(self) -> Dict:
-        """Get current VM state"""
+        """Retorna estado atual da VM"""
         return {
             "registers": dict(self.registers),
             "sensors": dict(self.sensors),
@@ -445,9 +445,9 @@ class StreamVM:
         }
 
 
-# --------- Demo Programs ---------
+# --------- Programas Demo ---------
 
-# Simple playback control
+# Controle simples de reprodução
 DEMO_SIMPLE = """
 OPEN "Trailer 1"
 PLAY 1
@@ -456,7 +456,7 @@ PAUSE
 HALT
 """
 
-# Conditional logic - play until position >= 30
+# Lógica condicional - reproduz até posição >= 30
 DEMO_CONDITIONAL = """
 OPEN "Demo Video"
 PLAY 1
@@ -465,31 +465,31 @@ loop:
     WAIT 1
     GET_POS
     PUSH 30
-    LT              ; stack: 1 if pos < 30, else 0
-    JUMPI loop      ; continue if pos < 30
+    LT              ; pilha: 1 se pos < 30, senão 0
+    JUMPI loop      ; continua se pos < 30
 
 PAUSE
-PRINTS "Reached 30 seconds!"
+PRINTS "Alcançou 30 segundos!"
 HALT
 """
 
-# Use registers and arithmetic
+# Uso de registradores e aritmética
 DEMO_ARITHMETIC = """
 OPEN "Tutorial"
 PLAY 1
 WAIT 10
 
-; Store position in memory
+; Armazena posição na memória
 GET_POS
-STORE 0         ; memory[0] = position
+STORE 0         ; memory[0] = posição
 
-; Add 20 seconds
+; Adiciona 20 segundos
 LOAD 0
 PUSH 20
 ADD
-POP R0          ; R0 = position + 20
+POP R0          ; R0 = posição + 20
 
-; Seek to new position
+; Busca nova posição
 PUSH R0
 POP R0
 SEEK 30
@@ -497,9 +497,9 @@ SEEK 30
 HALT
 """
 
-# Turing-complete: use DECJZ for loop
+# Turing-completo: usa DECJZ para loop
 DEMO_DECJZ = """
-; Count down from 5 using DECJZ (Turing-complete instruction)
+; Contagem regressiva de 5 usando DECJZ (instrução Turing-completa)
 PUSH 5
 POP R0
 
@@ -510,7 +510,7 @@ countdown:
     GOTO countdown
 
 done:
-    PRINTS "Countdown finished!"
+    PRINTS "Contagem finalizada!"
     HALT
 """
 
@@ -519,39 +519,39 @@ if __name__ == "__main__":
     vm = StreamVM()
 
     if len(sys.argv) > 1:
-        # Load program from file
+        # Carregar programa de arquivo
         filename = sys.argv[1]
         try:
             with open(filename, 'r') as f:
                 program = f.read()
-            print(f"=== Loading program from {filename} ===\n")
+            print(f"=== Carregando programa de {filename} ===\n")
             vm.load_program(program)
             vm.run()
-            print("\n=== Final State ===")
+            print("\n=== Estado Final ===")
             print(vm.state())
         except FileNotFoundError:
-            print(f"Error: File '{filename}' not found")
+            print(f"Erro: Arquivo '{filename}' não encontrado")
             sys.exit(1)
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Erro: {e}")
             import traceback
             traceback.print_exc()
             sys.exit(1)
     else:
-        # Run demo programs
-        print("=== Demo 1: Simple Playback ===\n")
+        # Executar programas demo
+        print("=== Demo 1: Reprodução Simples ===\n")
         vm.load_program(DEMO_SIMPLE)
         vm.run()
-        print("\nState:", vm.state())
+        print("\nEstado:", vm.state())
 
-        print("\n\n=== Demo 2: Conditional Loop ===\n")
+        print("\n\n=== Demo 2: Loop Condicional ===\n")
         vm = StreamVM()
         vm.load_program(DEMO_CONDITIONAL)
         vm.run()
-        print("\nState:", vm.state())
+        print("\nEstado:", vm.state())
 
-        print("\n\n=== Demo 3: DECJZ Countdown (Turing-complete) ===\n")
+        print("\n\n=== Demo 3: Contagem DECJZ (Turing-completo) ===\n")
         vm = StreamVM()
         vm.load_program(DEMO_DECJZ)
         vm.run()
-        print("\nState:", vm.state())
+        print("\nEstado:", vm.state())
